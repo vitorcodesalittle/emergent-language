@@ -1,7 +1,11 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
+import matplotlib.pyplot as plt
 from torch.autograd import Variable
+import numpy as np
+
+from modules.plot import Plot
 
 """
     The GameModule takes in all actions(movement, utterance, goal prediction)
@@ -42,8 +46,12 @@ class GameModule(nn.Module):
             self.Tensor = torch.FloatTensor
 
         locations = torch.rand(self.batch_size, self.num_entities, 2) * config.world_dim
-        colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
-        shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
+        # plt.plot(np.array(locations[1,:,0]), np.array(locations[1,:,1]), 'ro') ##
+
+        self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
+        self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
+        Plot.save_step_plot(1, "start", locations, self.colors, self.shapes)
+
 
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
         goal_entities = (torch.rand(self.batch_size, self.num_agents, 1) * self.num_landmarks).floor().long() + self.num_agents
@@ -51,14 +59,14 @@ class GameModule(nn.Module):
 
         if self.using_cuda:
             locations = locations.cuda()
-            colors = colors.cuda()
-            shapes = shapes.cuda()
+            self.colors = self.colors.cuda()
+            self.shapes = self.shapes.cuda()
             goal_entities = goal_entities.cuda()
 
         # [batch_size, num_entities, 2]
         self.locations = Variable(locations)
         # [batch_size, num_entities, 2]
-        self.physical = Variable(torch.cat((colors,shapes), 2).float())
+        self.physical = Variable(torch.cat((self.colors,self.shapes), 2).float())
 
         for b in range(self.batch_size):
             goal_agents[b, :, 0] = torch.randperm(self.num_agents)
@@ -115,8 +123,9 @@ class GameModule(nn.Module):
     Returns:
         - scalar: total cost of all games in the batch
     """
-    def forward(self, movements, goal_predictions, utterances):
+    def forward(self, movements, goal_predictions, utterances, t):
         self.locations = self.locations + movements
+        Plot.save_step_plot(1, t, self.locations, self.colors, self.shapes)
         agent_baselines = self.locations[:, :self.num_agents]
         self.observations = self.locations.unsqueeze(1)- agent_baselines.unsqueeze(2)
         new_obs = self.goals[:,:,:2] - agent_baselines
