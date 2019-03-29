@@ -60,9 +60,8 @@ class GameModule(nn.Module):
         # [batch_size, num_entities, 2]
         self.physical = Variable(torch.cat((colors,shapes), 2).float())
 
-        #TODO: Bad for loop?
         for b in range(self.batch_size):
-            goal_agents[b] = torch.randperm(self.num_agents)
+            goal_agents[b, :, 0] = torch.randperm(self.num_agents)
 
         for b in range(self.batch_size):
             goal_locations[b] = self.locations.data[b][goal_entities[b].squeeze()]
