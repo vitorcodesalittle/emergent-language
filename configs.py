@@ -50,6 +50,7 @@ GameConfig = NamedTuple('GameConfig', [
     ('vocab_size', int),
     ('memory_size', int),
     ('use_cuda', bool),
+    ('time_horizon', int),
 ])
 
 ProcessingModuleConfig = NamedTuple('ProcessingModuleConfig', [
@@ -124,7 +125,8 @@ default_game_config = GameConfig(
         USE_UTTERANCES,
         DEFAULT_VOCAB_SIZE,
         DEFAULT_HIDDEN_SIZE,
-        False
+        False,
+        DEFAULT_TIME_HORIZON,
         )
 
 if USE_UTTERANCES:
@@ -192,7 +194,8 @@ def get_game_config(kwargs):
             use_utterances=not kwargs['no_utterances'],
             vocab_size=kwargs['vocab_size'] or default_game_config.vocab_size,
             memory_size=default_game_config.memory_size,
-            use_cuda=kwargs['use_cuda']
+            use_cuda=kwargs['use_cuda'],
+            time_horizon=kwargs['n_timesteps'] or default_game_config.time_horizon,
             )
 
 def get_agent_config(kwargs):
