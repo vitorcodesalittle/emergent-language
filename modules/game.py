@@ -40,6 +40,7 @@ class GameModule(nn.Module):
         self.num_landmarks = num_landmarks # scalar: number of landmarks in this batch
         self.num_entities = self.num_agents + self.num_landmarks # type: int
         self.world_dim = config.world_dim
+        self.time_horizon = config.time_horizon
         if self.using_cuda:
             self.Tensor = torch.cuda.FloatTensor
         else:
@@ -51,9 +52,9 @@ class GameModule(nn.Module):
         self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
         self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
 
-
-        Plot.save_step_plot(self.batch_size, "start", locations, self.colors, self.shapes, self.world_dim)
-
+        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1], locations.shape[2], self.world_dim)
+        self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
+        # Plot.save_step_plot(self.batch_size, "start", locations, self.colors, self.shapes, self.world_dim)
 
 
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
@@ -128,7 +129,9 @@ class GameModule(nn.Module):
     """
     def forward(self, movements, goal_predictions, utterances, t):
         self.locations = self.locations + movements
-        Plot.save_step_plot(self.batch_size, t, self.locations, self.colors, self.shapes, self.world_dim)
+        self.plots_matrix.save_plot_matrix(t, self.locations, self.colors, self.shapes)
+
+    # Plot.save_step_plot(self.batch_size, t, self.locations, self.colors, self.shapes, self.world_dim)
         agent_baselines = self.locations[:, :self.num_agents]
         self.observations = self.locations.unsqueeze(1)- agent_baselines.unsqueeze(2)
         new_obs = self.goals[:,:,:2] - agent_baselines
