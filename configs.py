@@ -51,6 +51,7 @@ GameConfig = NamedTuple('GameConfig', [
     ('memory_size', int),
     ('use_cuda', bool),
     ('time_horizon', int),
+    ('num_epochs', int)
 ])
 
 ProcessingModuleConfig = NamedTuple('ProcessingModuleConfig', [
@@ -114,20 +115,20 @@ default_word_counter_config = WordCountingModuleConfig(
         use_cuda=False)
 
 default_game_config = GameConfig(
-        DEFAULT_BATCH_SIZE,
-        DEFAULT_WORLD_DIM,
-        MAX_AGENTS,
-        MAX_LANDMARKS,
-        MIN_AGENTS,
-        MIN_LANDMARKS,
-        NUM_SHAPES,
-        NUM_COLORS,
-        USE_UTTERANCES,
-        DEFAULT_VOCAB_SIZE,
-        DEFAULT_HIDDEN_SIZE,
-        False,
-        DEFAULT_TIME_HORIZON,
-        )
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_WORLD_DIM,
+    MAX_AGENTS,
+    MAX_LANDMARKS,
+    MIN_AGENTS,
+    MIN_LANDMARKS,
+    NUM_SHAPES,
+    NUM_COLORS,
+    USE_UTTERANCES,
+    DEFAULT_VOCAB_SIZE,
+    DEFAULT_HIDDEN_SIZE,
+    False,
+    DEFAULT_TIME_HORIZON,
+    DEFAULT_NUM_EPOCHS,)
 
 if USE_UTTERANCES:
     feat_size = DEFAULT_FEAT_VEC_SIZE*3
@@ -183,20 +184,21 @@ def get_training_config(kwargs):
 
 def get_game_config(kwargs):
     return GameConfig(
-            batch_size=kwargs['batch_size'] or default_game_config.batch_size,
-            world_dim=kwargs['world_dim'] or default_game_config.world_dim,
-            max_agents=kwargs['max_agents'] or default_game_config.max_agents,
-            min_agents=kwargs['min_agents'] or default_game_config.min_agents,
-            max_landmarks=kwargs['max_landmarks'] or default_game_config.max_landmarks,
-            min_landmarks=kwargs['min_landmarks'] or default_game_config.min_landmarks,
-            num_shapes=kwargs['num_shapes'] or default_game_config.num_shapes,
-            num_colors=kwargs['num_colors'] or default_game_config.num_colors,
-            use_utterances=not kwargs['no_utterances'],
-            vocab_size=kwargs['vocab_size'] or default_game_config.vocab_size,
-            memory_size=default_game_config.memory_size,
-            use_cuda=kwargs['use_cuda'],
-            time_horizon=kwargs['n_timesteps'] or default_game_config.time_horizon,
-            )
+        batch_size=kwargs['batch_size'] or default_game_config.batch_size,
+        world_dim=kwargs['world_dim'] or default_game_config.world_dim,
+        max_agents=kwargs['max_agents'] or default_game_config.max_agents,
+        min_agents=kwargs['min_agents'] or default_game_config.min_agents,
+        max_landmarks=kwargs['max_landmarks'] or default_game_config.max_landmarks,
+        min_landmarks=kwargs['min_landmarks'] or default_game_config.min_landmarks,
+        num_shapes=kwargs['num_shapes'] or default_game_config.num_shapes,
+        num_colors=kwargs['num_colors'] or default_game_config.num_colors,
+        use_utterances=not kwargs['no_utterances'],
+        vocab_size=kwargs['vocab_size'] or default_game_config.vocab_size,
+        memory_size=default_game_config.memory_size,
+        use_cuda=kwargs['use_cuda'],
+        time_horizon=kwargs['n_timesteps'] or default_game_config.time_horizon,
+        num_epochs=kwargs['n_epochs'] or default_game_config.num_epochs,
+    )
 
 def get_agent_config(kwargs):
     vocab_size = kwargs['vocab_size'] or DEFAULT_VOCAB_SIZE

@@ -41,20 +41,19 @@ class GameModule(nn.Module):
         self.num_entities = self.num_agents + self.num_landmarks # type: int
         self.world_dim = config.world_dim
         self.time_horizon = config.time_horizon
+        self.num_epochs = config.num_epochs
         if self.using_cuda:
             self.Tensor = torch.cuda.FloatTensor
         else:
             self.Tensor = torch.FloatTensor
 
         locations = torch.rand(self.batch_size, self.num_entities, 2) * config.world_dim
-        # plt.plot(np.array(locations[1,:,0]), np.array(locations[1,:,1]), 'ro') ## not using
-
         self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
         self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
 
-        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1], locations.shape[2], self.world_dim)
-        self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
-        # Plot.save_step_plot(self.batch_size, "start", locations, self.colors, self.shapes, self.world_dim)
+        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1], locations.shape[2], self.world_dim, self.num_agents,
+                                 self.num_epochs) ###
+        self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes) ####
 
 
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
@@ -129,9 +128,7 @@ class GameModule(nn.Module):
     """
     def forward(self, movements, goal_predictions, utterances, t):
         self.locations = self.locations + movements
-        self.plots_matrix.save_plot_matrix(t, self.locations, self.colors, self.shapes)
-
-    # Plot.save_step_plot(self.batch_size, t, self.locations, self.colors, self.shapes, self.world_dim)
+        self.plots_matrix.save_plot_matrix(t, self.locations, self.colors, self.shapes) ####
         agent_baselines = self.locations[:, :self.num_agents]
         self.observations = self.locations.unsqueeze(1)- agent_baselines.unsqueeze(2)
         new_obs = self.goals[:,:,:2] - agent_baselines
@@ -139,6 +136,8 @@ class GameModule(nn.Module):
         self.observed_goals = torch.cat((new_obs, goal_agents), dim=2)
         if self.using_utterances:
             self.utterances = utterances
+            self.plots_matrix.save_utterance_matrix(utterances, t) ####
+
             return self.compute_cost(movements, goal_predictions, utterances)
         else:
             return self.compute_cost(movements, goal_predictions)

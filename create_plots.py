@@ -4,7 +4,7 @@ from modules.plot import Plot
 
 def main():
     start = time.time()
-    Plot.create_plots()
+    Plot.create_plots(1000,30)
     end = time.time()
     print("create_plots: "+str(end - start))
     start = time.time()
