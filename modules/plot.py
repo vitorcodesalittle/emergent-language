@@ -1,12 +1,17 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from tempfile import TemporaryFile
 import progressbar
 from time import sleep
-import  time
+import subprocess
+from pathlib import Path
+
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
+proj_dir= str(Path(os.getcwd()).parent)
+plots_dir = proj_dir+os.sep+'plots'+os.sep
 
 class Plot:
     def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim):
@@ -17,22 +22,42 @@ class Plot:
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
-              self.location_matrix[:,0,:,:] =  locations
+              self.location_matrix[:,0,:,:] = locations
               self.color_matrix = colors
               self.shape_matrix = shapes
 
         else: # i don't need to recreate the color ans shape matrix
-            self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
+            self.location_matrix[:,iteration + 1,:,:] = locations.detach().numpy()
             outmatrixfile = TemporaryFile()
             np.savez('outmatrixfile.npz', self.location_matrix, self.color_matrix, self.shape_matrix)
 
+    @staticmethod
+    def create_video():
+        matrix = np.load(
+            os.getcwd() + os.sep + '..' + os.sep + 'outmatrixfile.npz')
+        location_array, color_array, shape_array = matrix.files
+        locations = matrix[location_array]
+        batch_num = locations.shape[0]
+        total_iterations = locations.shape[1]
+        for batch in range(batch_num):
+            cmd = 'ffmpeg -f image2 -r 1/2 -i "'+plots_dir+'batchnum_{:02d}iter_%2d.png" -vcodec mpeg4 -y movie{:02d}.mp4'.format(batch, batch)
+            cmd = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   shell=True,
+                                   cwd=os.getcwd())
+            out, err = cmd.communicate()
+            if cmd.returncode == 0:
+                print("Job done.")
+            else:
+                print("ERROR")
+                print(out)
 
     @staticmethod
     def create_plots():
         # plt.ion() #so the plot will be dynamic
         fig, ax = plt.subplots()
         plt.axis([0, 16, 0, 16])
-        matrix = np.load(r'C:\Users\user\Desktop\emergent-language\outmatrixfile.npz')
+        matrix = np.load(os.getcwd()+os.sep+'..'+os.sep+'outmatrixfile.npz')
         location_array, color_array, shape_array = matrix.files
         locations = matrix[location_array]
         colors = matrix[color_array]
@@ -44,8 +69,6 @@ class Plot:
         bar = progressbar.ProgressBar(maxval=batch_num, \
                                       widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
         bar.start()
-
-
 
         for batch in range(batch_num):
             plt.cla()
@@ -67,7 +90,7 @@ class Plot:
                         fig.canvas.draw_idle()
 
                 # plt.show()
-                plt.savefig(r'C:\Users\user\Desktop\emergent-language\plots\batchnum_{0}iter_{1}.png'.format(batch, iteration))
+                plt.savefig(plots_dir+'batchnum_{:02d}iter_{:02d}.png'.format(batch, iteration))
             bar.update(batch + 1)
             sleep (0.1)
         bar.finish()

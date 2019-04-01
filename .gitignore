@@ -9,3 +9,5 @@ mypy.ini
 venv/
 docker/
 plots/
+modules/\\plots\\*
+movies/
