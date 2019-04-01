@@ -8,3 +8,4 @@ mypy.ini
 *.pyc
 venv/
 docker/
+plots/
