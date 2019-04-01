@@ -31,7 +31,6 @@ class Plot:
         self.location_matrix = np.zeros(shape= ( self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start'
         self.color_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
         self.shape_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
-        self.epoch = epoch
         # self.epoch = dict_epoch['epoch']
         # dict_epoch['epoch'] += 1
 
@@ -44,11 +43,11 @@ class Plot:
         elif iteration < self.total_iteration - 2: # i don't need to recreate the color ans shape matrices
             self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
         else:
-            self.epoch = self.epoch+1
             self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
             if os.path.isfile('.\locations.h5'):
                 # locations, colors, shapes, num_agents = Plot.extract_data_locations()
                 with h5py.File('.\locations.h5', 'a') as hf:
+                    self.epoch = len(list(hf.keys()))+1
                     hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
                 with h5py.File('.\colors.h5', 'a') as hf:
                     hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
@@ -57,7 +56,8 @@ class Plot:
                 # np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
             else:
                 with h5py.File('.\locations.h5', 'w') as hf:
-                        hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
+                    self.epoch = len(list(hf.keys()))+1
+                    hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
                 with h5py.File('.\colors.h5', 'w') as hf:
                     hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
                 with h5py.File('.\shape.h5', 'w') as hf:
@@ -94,12 +94,14 @@ class Plot:
             self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
         else:
             self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
-            if os.path.isfile(utterance_matrix_file):
-                utterance = Plot.extract_utterance_matrix()
-                self.utterance_matrix = np.append(utterance,self.utterance_matrix)
-                np.savez(utterance_matrix_file, self.utterance_matrix)
+            if os.path.isfile('.\sentence.h5'):
+                # locations, colors, shapes, num_agents = Plot.extract_data_locations()
+                with h5py.File('.\sentence.h5', 'a') as hf:
+                    hf.create_dataset("sentence"+str(self.epoch), data=self.utterance_matrix)
+
             else:
-                 np.savez(utterance_matrix_file, self.utterance_matrix)
+                with h5py.File('.\sentence.h5', 'w') as hf:
+                    hf.create_dataset("sentence"+str(self.epoch), data=self.utterance_matrix)
 
 
     @staticmethod
