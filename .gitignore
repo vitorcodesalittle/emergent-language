@@ -11,3 +11,4 @@ docker/
 plots/
 modules/\\plots\\*
 movies/
+matrices/

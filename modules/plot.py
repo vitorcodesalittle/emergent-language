@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import numpy as np
@@ -14,9 +15,9 @@ dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
 proj_dir = str(Path(os.getcwd()).parent)
 plots_dir = proj_dir+os.sep+'plots'+os.sep
 movies_dir = proj_dir+os.sep+'movies'+os.sep
-matrix_dir = proj_dir+os.sep+'matrix'+os.sep
-out_matrix_file = matrix_dir + 'outmatrixfile.npz'
-utterance_matrix_file = matrix_dir+'utterancematrixfile.npz'
+matrix_dir = proj_dir+os.sep+'matrices'+os.sep
+out_matrix_file = matrix_dir + 'outmatrixfile'+str(datetime.datetime.now().strftime("%Y%m%d%H%M"))+'.npz'
+utterance_matrix_file = matrix_dir+str(datetime.datetime.now().strftime("%Y%m%d%H%M"))+'utterancematrixfile.npz'
 dict_epoch = {'epoch' : 0}
 
 
@@ -40,7 +41,7 @@ class Plot:
             self.color_matrix[self.epoch,:,:,:] = colors
             self.shape_matrix[self.epoch,:,:,:] = shapes
 
-        elif iteration < self.total_iteration - 2: # i don't need to recreate the color ans shape matrix
+        elif iteration < self.total_iteration - 2: # i don't need to recreate the color ans shape matrices
             self.location_matrix[self.epoch,:,iteration + 1,:,:] =  locations.detach().numpy()
         else:
             self.location_matrix[self.epoch,:,iteration + 1,:,:] =  locations.detach().numpy()
@@ -80,7 +81,7 @@ class Plot:
     @staticmethod
     def create_plots(epoch, batch_size):
 
-        #extracting the matrix containing the data from the file
+        #extracting the matrices containing the data from the file
         locations, colors, shapes, num_agents = Plot.extract_data_locations()
         utterance = Plot.extract_utterance_matrix()
         utterance_legand = np.zeros(shape = (locations.shape[2],utterance.shape[3]))
@@ -125,7 +126,7 @@ class Plot:
 
     @staticmethod
     def extract_data_locations ():
-        #extracting the matrix containing the data from the file
+        #extracting the matrices containing the data from the file
         matrix = np.load(out_matrix_file)
         location_array, color_array, shape_array, num_agents = matrix.files
         locations = matrix[location_array]
@@ -144,7 +145,7 @@ class Plot:
 
     @staticmethod
     def extract_utterance_matrix():
-        #extracting the matrix containing the data from the file
+        #extracting the matrices containing the data from the file
         matrix = np.load(utterance_matrix_file)
         utterance_array = matrix.files[0]
         utterance = matrix[utterance_array]
