@@ -8,6 +8,7 @@ import progressbar
 from time import sleep
 import subprocess
 from pathlib import Path
+import h5py
 
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
@@ -16,20 +17,23 @@ proj_dir = str(Path(os.getcwd()).parent)
 plots_dir = proj_dir+os.sep+'plots'+os.sep
 movies_dir = proj_dir+os.sep+'movies'+os.sep
 matrix_dir = proj_dir+os.sep+'matrices'+os.sep
-out_matrix_file = matrix_dir + 'outmatrixfile'+str(datetime.datetime.now().strftime("%Y%m%d%H%M"))+'.npz'
-utterance_matrix_file = matrix_dir+str(datetime.datetime.now().strftime("%Y%m%d%H%M"))+'utterancematrixfile.npz'
-
+out_matrix_file = matrix_dir + 'outmatrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
+utterance_matrix_file = matrix_dir+'utterancematrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
+# dict_epoch = {'epoch' : 0}
+epoch = -1
 
 class Plot:
-    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents,num_epochs):
+    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents):
         self.batch_num = batch_num
         self.total_iteration = total_iteration + 1
         self.world_dim = world_dim
         self.num_agents = num_agents
-
         self.location_matrix = np.zeros(shape= ( self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start'
         self.color_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
         self.shape_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
+        self.epoch = epoch
+        # self.epoch = dict_epoch['epoch']
+        # dict_epoch['epoch'] += 1
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
@@ -40,9 +44,28 @@ class Plot:
         elif iteration < self.total_iteration - 2: # i don't need to recreate the color ans shape matrices
             self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
         else:
+            self.epoch = self.epoch+1
             self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
-            outmatrixfile = TemporaryFile()
-            np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
+            if os.path.isfile('.\locations.h5'):
+                # locations, colors, shapes, num_agents = Plot.extract_data_locations()
+                with h5py.File('.\locations.h5', 'a') as hf:
+                    hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
+                with h5py.File('.\colors.h5', 'a') as hf:
+                    hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
+                with h5py.File('.\shape.h5', 'a') as hf:
+                    hf.create_dataset("shape"+str(self.epoch), data=self.shape_matrix)
+                # np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
+            else:
+                with h5py.File('.\locations.h5', 'w') as hf:
+                        hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
+                with h5py.File('.\colors.h5', 'w') as hf:
+                    hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
+                with h5py.File('.\shape.h5', 'w') as hf:
+                    hf.create_dataset("shape"+str(self.epoch), data=self.shape_matrix)
+                # outmatrixfile = TemporaryFile(out_matrix_file)
+                # np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
+        return out_matrix_file
+
 
     @staticmethod
     def create_video():
@@ -71,8 +94,13 @@ class Plot:
             self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
         else:
             self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
-            utterancematrixfile = TemporaryFile()
-            np.savez(utterance_matrix_file, self.utterance_matrix)
+            if os.path.isfile(utterance_matrix_file):
+                utterance = Plot.extract_utterance_matrix()
+                self.utterance_matrix = np.append(utterance,self.utterance_matrix)
+                np.savez(utterance_matrix_file, self.utterance_matrix)
+            else:
+                 np.savez(utterance_matrix_file, self.utterance_matrix)
+
 
     @staticmethod
     def create_plots(epoch, batch_size):

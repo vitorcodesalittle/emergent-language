@@ -51,8 +51,7 @@ class GameModule(nn.Module):
         self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
         self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
 
-        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1], locations.shape[2], self.world_dim, self.num_agents,
-                                 self.num_epochs) ###
+        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1], locations.shape[2], self.world_dim, self.num_agents) ###
         self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes) ####
 
 
