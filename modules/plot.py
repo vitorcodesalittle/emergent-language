@@ -18,33 +18,29 @@ movies_dir = proj_dir+os.sep+'movies'+os.sep
 matrix_dir = proj_dir+os.sep+'matrices'+os.sep
 out_matrix_file = matrix_dir + 'outmatrixfile'+str(datetime.datetime.now().strftime("%Y%m%d%H%M"))+'.npz'
 utterance_matrix_file = matrix_dir+str(datetime.datetime.now().strftime("%Y%m%d%H%M"))+'utterancematrixfile.npz'
-dict_epoch = {'epoch' : 0}
 
 
 class Plot:
     def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents,num_epochs):
-        dict_epoch['epoch'] += 1 ####
-        self.epoch = dict_epoch['epoch']-1 ####
         self.batch_num = batch_num
-        self.num_epochs = num_epochs
         self.total_iteration = total_iteration + 1
         self.world_dim = world_dim
         self.num_agents = num_agents
 
-        self.location_matrix = np.zeros(shape= (self.num_epochs, self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start'
-        self.color_matrix = np.zeros(shape = (self.num_epochs, self.batch_num, num_locations, 1))
-        self.shape_matrix = np.zeros(shape = (self.num_epochs, self.batch_num, num_locations, 1))
+        self.location_matrix = np.zeros(shape= ( self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start'
+        self.color_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
+        self.shape_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
-            self.location_matrix[self.epoch,:,0,:,:] =  locations
-            self.color_matrix[self.epoch,:,:,:] = colors
-            self.shape_matrix[self.epoch,:,:,:] = shapes
+            self.location_matrix[:,0,:,:] =  locations
+            self.color_matrix[:,:,:] = colors
+            self.shape_matrix[:,:,:] = shapes
 
         elif iteration < self.total_iteration - 2: # i don't need to recreate the color ans shape matrices
-            self.location_matrix[self.epoch,:,iteration + 1,:,:] =  locations.detach().numpy()
+            self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
         else:
-            self.location_matrix[self.epoch,:,iteration + 1,:,:] =  locations.detach().numpy()
+            self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
             outmatrixfile = TemporaryFile()
             np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
 
@@ -70,11 +66,11 @@ class Plot:
 
     def save_utterance_matrix(self,utterance, iteration):
         if iteration == 0 :
-            self.utterance_matrix = np.zeros(shape = (self.num_epochs ,self.batch_num, self.total_iteration, self.num_agents, utterance.shape[2]))
+            self.utterance_matrix = np.zeros(shape = (self.batch_num, self.total_iteration, self.num_agents, utterance.shape[2]))
         elif iteration < self.total_iteration - 2:
-            self.utterance_matrix[self.epoch,:,iteration + 1 ,:,:] = utterance.detach().numpy()
+            self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
         else:
-            self.utterance_matrix[self.epoch,:,iteration + 1 ,:,:] = utterance.detach().numpy()
+            self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
             utterancematrixfile = TemporaryFile()
             np.savez(utterance_matrix_file, self.utterance_matrix)
 
