@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 from tempfile import TemporaryFile
@@ -9,8 +11,12 @@ from pathlib import Path
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
-proj_dir= str(Path(os.getcwd()).parent)
+proj_dir = str(Path(os.getcwd()).parent)
 plots_dir = proj_dir+os.sep+'plots'+os.sep
+movies_dir = proj_dir+os.sep+'movies'+os.sep
+matrix_dir = proj_dir+os.sep+'matrix'+os.sep
+out_matrix_file = matrix_dir + 'outmatrixfile.npz'
+utterance_matrix_file = matrix_dir+'utterancematrixfile.npz'
 dict_epoch = {'epoch' : 0}
 
 
@@ -27,6 +33,7 @@ class Plot:
         self.location_matrix = np.zeros(shape= (self.num_epochs, self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start'
         self.color_matrix = np.zeros(shape = (self.num_epochs, self.batch_num, num_locations, 1))
         self.shape_matrix = np.zeros(shape = (self.num_epochs, self.batch_num, num_locations, 1))
+
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
             self.location_matrix[self.epoch,:,0,:,:] =  locations
@@ -38,18 +45,17 @@ class Plot:
         else:
             self.location_matrix[self.epoch,:,iteration + 1,:,:] =  locations.detach().numpy()
             outmatrixfile = TemporaryFile()
-            np.savez('outmatrixfile.npz', self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
+            np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
 
     @staticmethod
     def create_video():
-        matrix = np.load(
-            os.getcwd() + os.sep + '..' + os.sep + 'outmatrixfile.npz')
+        matrix = np.load(out_matrix_file)
         location_array, color_array, shape_array = matrix.files
         locations = matrix[location_array]
         batch_num = locations.shape[0]
         total_iterations = locations.shape[1]
         for batch in range(batch_num):
-            cmd = 'ffmpeg -f image2 -r 1/2 -i "'+plots_dir+'batchnum_{:02d}iter_%2d.png" -vcodec mpeg4 -y movie{:02d}.mp4'.format(batch, batch)
+            cmd = 'ffmpeg -f image2 -r 1/2 -i "'+movies_dir+'batchnum_{:02d}iter_%2d.png" -vcodec mpeg4 -y movie{:02d}.mp4'.format(batch, batch)
             cmd = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
                                    shell=True,
@@ -69,7 +75,7 @@ class Plot:
         else:
             self.utterance_matrix[self.epoch,:,iteration + 1 ,:,:] = utterance.detach().numpy()
             utterancematrixfile = TemporaryFile()
-            np.savez('utterancematrixfile.npz', self.utterance_matrix)
+            np.savez(utterance_matrix_file, self.utterance_matrix)
 
     @staticmethod
     def create_plots(epoch, batch_size):
@@ -112,7 +118,7 @@ class Plot:
                 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
                           fancybox=True, shadow=True, ncol=2 ,prop={'size': 5})
 
-                plt.savefig(r'C:\Users\user\Desktop\emergent-language\plots\batchnum_{0}iter_{1}epoch_{2}.png'.format(batch, iteration,epoch))
+                plt.savefig(plots_dir+'batchnum_{0}iter_{1}epoch_{2}.png'.format(batch, iteration,epoch))
             bar.update(batch + 1)
             sleep (0.1)
         bar.finish()
@@ -120,7 +126,7 @@ class Plot:
     @staticmethod
     def extract_data_locations ():
         #extracting the matrix containing the data from the file
-        matrix = np.load(r'C:\Users\user\Desktop\emergent-language\outmatrixfile.npz')
+        matrix = np.load(out_matrix_file)
         location_array, color_array, shape_array, num_agents = matrix.files
         locations = matrix[location_array]
         colors = matrix[color_array]
@@ -139,7 +145,7 @@ class Plot:
     @staticmethod
     def extract_utterance_matrix():
         #extracting the matrix containing the data from the file
-        matrix = np.load(r'C:\Users\user\Desktop\emergent-language\utterancematrixfile.npz')
+        matrix = np.load(utterance_matrix_file)
         utterance_array = matrix.files[0]
         utterance = matrix[utterance_array]
 
