@@ -145,7 +145,7 @@ class Plot:
                 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
                           fancybox=True, shadow=True, ncol=2 ,prop={'size': 5})
 
-                plt.savefig(plots_dir+'batchnum_{0}iter_{1}epoch_{2}.png'.format(batch, iteration,epoch))
+                plt.savefig(plots_dir+'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
             bar.update(batch + 1)
             sleep (0.1)
         bar.finish()

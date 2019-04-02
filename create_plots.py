@@ -4,7 +4,8 @@ from modules.plot import Plot
 
 def main():
     start = time.time()
-    Plot.create_plots(1, 30)
+    for epoch in range(0,1000,50):
+        Plot.create_plots(epoch, 10)
     end = time.time()
     print("create_plots: "+str(end - start))
     start = time.time()
