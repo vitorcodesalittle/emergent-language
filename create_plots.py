@@ -1,6 +1,7 @@
 import time
 from modules.plot import Plot
 
+batch_num=512
 
 def main():
     start = time.time()
@@ -9,7 +10,7 @@ def main():
     end = time.time()
     print("create_plots: "+str(end - start))
     start = time.time()
-    # Plot.create_video()
+    Plot.create_video(batch_num)
     end = time.time()
     print("create_video: " + str(end - start))
 

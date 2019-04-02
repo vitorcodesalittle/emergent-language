@@ -17,10 +17,17 @@ proj_dir = str(Path(os.getcwd()))
 plots_dir = proj_dir+os.sep+'plots'+os.sep
 movies_dir = proj_dir+os.sep+'movies'+os.sep
 matrix_dir = proj_dir+os.sep+'matrices'+os.sep
-# out_matrix_file = matrix_dir + 'outmatrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
-# utterance_matrix_file = matrix_dir+'utterancematrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
-# dict_epoch = {'epoch' : 0}
 epoch = -1
+
+
+def save_dataset(file_name, datasetname, dataset, epoch, mode):
+    with h5py.File(file_name, mode) as hf:
+        if epoch is None:
+            epoch = len(list(hf.keys()))
+        datasetname = datasetname + str(epoch)
+        hf.create_dataset(datasetname, data=dataset)
+    return epoch
+
 
 class Plot:
     def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents):
@@ -28,10 +35,15 @@ class Plot:
         self.total_iteration = total_iteration + 1
         self.world_dim = world_dim
         self.num_agents = num_agents
-        self.location_matrix = np.zeros(shape= ( self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start',
-        self.color_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
-        self.shape_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
+        self.location_matrix = np.zeros(shape=(self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start',
+        self.color_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
+        self.shape_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
 
+    def save_h5_file(self, mode):
+        self.epoch = save_dataset('.\locations.h5', 'location', self.location_matrix, self.epoch, mode)
+        save_dataset('.\clolors.h5', 'colors', self.colors_matrix, self.epoch, mode)
+        save_dataset('.\shape.h5', 'shape', self.shape_matrix, self.epoch, mode)
+        save_dataset('.\players.h5', 'players', self.num_agents, self.epoch, mode)
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
@@ -40,42 +52,23 @@ class Plot:
             self.shape_matrix[:,:,:] = shapes
 
         elif iteration < self.total_iteration - 2: # i don't need to recreate the color ans shape matrices
-            self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
+            self.location_matrix[:,iteration + 1,:,:] = locations.detach().numpy()
         else:
-            self.location_matrix[:,iteration + 1,:,:] =  locations.detach().numpy()
+            self.location_matrix[:,iteration + 1,:,:] = locations.detach().numpy()
             if os.path.isfile('.\locations.h5'):
                 # locations, colors, shapes, num_agents = Plot.extract_data_locations()
-                with h5py.File('.\locations.h5', 'a') as hf:
-                    self.epoch = len(list(hf.keys()))
-                    hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
-                with h5py.File('.\colors.h5', 'a') as hf:
-                    hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
-                with h5py.File('.\shape.h5', 'a') as hf:
-                    hf.create_dataset("shape"+str(self.epoch), data=self.shape_matrix)
-                with h5py.File('.\players.h5', 'a') as hf:
-                    hf.create_dataset("players"+str(self.epoch), data=self.num_agents)
+                self.save_h5_file('a')
 
             else:
-                with h5py.File('.\locations.h5', 'w') as hf:
-                    self.epoch = len(list(hf.keys()))
-                    hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
-                with h5py.File('.\colors.h5', 'w') as hf:
-                    hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
-                with h5py.File('.\shape.h5', 'w') as hf:
-                    hf.create_dataset("shape"+str(self.epoch), data=self.shape_matrix)
-                with h5py.File('.\players.h5', 'w') as hf:
-                    hf.create_dataset("players"+str(self.epoch), data=self.num_agents)
+                self.save_h5_file('w')
 
 
 
     @staticmethod
-    def create_video():
-        matrix = np.load(out_matrix_file)
-        location_array, color_array, shape_array = matrix.files
-        locations = matrix[location_array]
-        batch_num = locations.shape[0]
-        total_iterations = locations.shape[1]
-        for batch in range(batch_num):
+    def create_video(batch):
+        for batch in range(batch):
+            # create a video from all pictures in movies_dir of the format
+            # 'batchnum_batchiter_{int}d.png'
             cmd = 'ffmpeg -f image2 -r 1/2 -i "'+movies_dir+'batchnum_{:02d}iter_%2d.png" -vcodec mpeg4 -y movie{:02d}.mp4'.format(batch, batch)
             cmd = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
@@ -83,26 +76,24 @@ class Plot:
                                    cwd=os.getcwd())
             out, err = cmd.communicate()
             if cmd.returncode == 0:
-                print("Job done.")
+                pass  # success
             else:
                 print("ERROR")
                 print(out)
 
     def save_utterance_matrix(self,utterance, iteration):
-        if iteration == 0 :
-            self.utterance_matrix = np.zeros(shape = (self.batch_num, self.total_iteration, self.num_agents, utterance.shape[2]))
+        if iteration == 0:
+            self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, utterance.shape[2]))
         elif iteration < self.total_iteration - 2:
-            self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
+            self.utterance_matrix[:iteration + 1, :, :] = utterance.detach().numpy()
         else:
-            self.utterance_matrix[:,iteration + 1 ,:,:] = utterance.detach().numpy()
+            self.utterance_matrix[:iteration + 1, :, :] = utterance.detach().numpy()
             if os.path.isfile('.\sentence.h5'):
                 # locations, colors, shapes, num_agents = Plot.extract_data_locations()
-                with h5py.File('.\sentence.h5', 'a') as hf:
-                    hf.create_dataset("sentence"+str(self.epoch), data=self.utterance_matrix)
+                save_dataset('.\sentence.h5', 'sentence', self.utterance_matrix, self.epoch, 'a')
 
             else:
-                with h5py.File('.\sentence.h5', 'w') as hf:
-                    hf.create_dataset("sentence"+str(self.epoch), data=self.utterance_matrix)
+                save_dataset('.\sentence.h5', 'sentence', self.utterance_matrix, self.epoch, 'w')
 
 
     @staticmethod
@@ -147,7 +138,7 @@ class Plot:
 
                 plt.savefig(plots_dir+'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
             bar.update(batch + 1)
-            sleep (0.1)
+            sleep(0.1)
         bar.finish()
 
     @staticmethod
