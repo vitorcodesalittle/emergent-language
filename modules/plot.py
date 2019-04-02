@@ -20,10 +20,9 @@ matrix_dir = proj_dir+os.sep+'matrices'+os.sep
 epoch = -1
 
 
-def save_dataset(file_name, datasetname, dataset, epoch, mode):
+def save_dataset(file_name, datasetname, dataset, mode):
     with h5py.File(file_name, mode) as hf:
-        if epoch is None:
-            epoch = len(list(hf.keys()))
+        epoch = len(list(hf.keys()))
         datasetname = datasetname + str(epoch)
         hf.create_dataset(datasetname, data=dataset)
     return epoch
@@ -40,10 +39,10 @@ class Plot:
         self.shape_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
 
     def save_h5_file(self, mode):
-        self.epoch = save_dataset('.\locations.h5', 'location', self.location_matrix, self.epoch, mode)
-        save_dataset('.\clolors.h5', 'colors', self.colors_matrix, self.epoch, mode)
-        save_dataset('.\shape.h5', 'shape', self.shape_matrix, self.epoch, mode)
-        save_dataset('.\players.h5', 'players', self.num_agents, self.epoch, mode)
+        save_dataset('.\locations.h5', 'location', self.location_matrix, mode)
+        save_dataset('.\clolors.h5', 'colors', self.color_matrix, mode)
+        save_dataset('.\shape.h5', 'shape', self.shape_matrix, mode)
+        save_dataset('.\players.h5', 'players', self.num_agents, mode)
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
@@ -85,15 +84,15 @@ class Plot:
         if iteration == 0:
             self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, utterance.shape[2]))
         elif iteration < self.total_iteration - 2:
-            self.utterance_matrix[:iteration + 1, :, :] = utterance.detach().numpy()
+            self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
         else:
-            self.utterance_matrix[:iteration + 1, :, :] = utterance.detach().numpy()
+            self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
             if os.path.isfile('.\sentence.h5'):
                 # locations, colors, shapes, num_agents = Plot.extract_data_locations()
-                save_dataset('.\sentence.h5', 'sentence', self.utterance_matrix, self.epoch, 'a')
+                save_dataset('.\sentence.h5', 'sentence', self.utterance_matrix, 'a')
 
             else:
-                save_dataset('.\sentence.h5', 'sentence', self.utterance_matrix, self.epoch, 'w')
+                save_dataset('.\sentence.h5', 'sentence', self.utterance_matrix, 'w')
 
 
     @staticmethod
