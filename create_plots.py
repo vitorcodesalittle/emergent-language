@@ -8,7 +8,7 @@ def main():
     end = time.time()
     print("create_plots: "+str(end - start))
     start = time.time()
-    Plot.create_video()
+    # Plot.create_video()
     end = time.time()
     print("create_video: " + str(end - start))
 

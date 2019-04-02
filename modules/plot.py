@@ -13,12 +13,12 @@ import h5py
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
-proj_dir = str(Path(os.getcwd()).parent)
+proj_dir = str(Path(os.getcwd()))
 plots_dir = proj_dir+os.sep+'plots'+os.sep
 movies_dir = proj_dir+os.sep+'movies'+os.sep
 matrix_dir = proj_dir+os.sep+'matrices'+os.sep
-out_matrix_file = matrix_dir + 'outmatrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
-utterance_matrix_file = matrix_dir+'utterancematrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
+# out_matrix_file = matrix_dir + 'outmatrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
+# utterance_matrix_file = matrix_dir+'utterancematrixfile'+str(datetime.datetime.now().strftime("%Y%m%d"))+'.npz'
 # dict_epoch = {'epoch' : 0}
 epoch = -1
 
@@ -28,11 +28,10 @@ class Plot:
         self.total_iteration = total_iteration + 1
         self.world_dim = world_dim
         self.num_agents = num_agents
-        self.location_matrix = np.zeros(shape= ( self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start'
+        self.location_matrix = np.zeros(shape= ( self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start',
         self.color_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
         self.shape_matrix = np.zeros(shape = ( self.batch_num, num_locations, 1))
-        # self.epoch = dict_epoch['epoch']
-        # dict_epoch['epoch'] += 1
+
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
@@ -47,24 +46,26 @@ class Plot:
             if os.path.isfile('.\locations.h5'):
                 # locations, colors, shapes, num_agents = Plot.extract_data_locations()
                 with h5py.File('.\locations.h5', 'a') as hf:
-                    self.epoch = len(list(hf.keys()))+1
+                    self.epoch = len(list(hf.keys()))
                     hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
                 with h5py.File('.\colors.h5', 'a') as hf:
                     hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
                 with h5py.File('.\shape.h5', 'a') as hf:
                     hf.create_dataset("shape"+str(self.epoch), data=self.shape_matrix)
-                # np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
+                with h5py.File('.\players.h5', 'a') as hf:
+                    hf.create_dataset("players"+str(self.epoch), data=self.num_agents)
+
             else:
                 with h5py.File('.\locations.h5', 'w') as hf:
-                    self.epoch = len(list(hf.keys()))+1
+                    self.epoch = len(list(hf.keys()))
                     hf.create_dataset("location"+str(self.epoch), data=self.location_matrix)
                 with h5py.File('.\colors.h5', 'w') as hf:
                     hf.create_dataset("colors"+str(self.epoch), data=self.color_matrix)
                 with h5py.File('.\shape.h5', 'w') as hf:
                     hf.create_dataset("shape"+str(self.epoch), data=self.shape_matrix)
-                # outmatrixfile = TemporaryFile(out_matrix_file)
-                # np.savez(out_matrix_file, self.location_matrix, self.color_matrix, self.shape_matrix, np.array([self.num_agents]))
-        return out_matrix_file
+                with h5py.File('.\players.h5', 'w') as hf:
+                    hf.create_dataset("players"+str(self.epoch), data=self.num_agents)
+
 
 
     @staticmethod
@@ -107,13 +108,12 @@ class Plot:
     @staticmethod
     def create_plots(epoch, batch_size):
 
-        #extracting the matrices containing the data from the file
-        locations, colors, shapes, num_agents = Plot.extract_data_locations()
-        utterance = Plot.extract_utterance_matrix()
-        utterance_legand = np.zeros(shape = (locations.shape[2],utterance.shape[3]))
+        #extracting the matrices containing the data from the files
+        locations, colors, shapes, num_agents, utterance = Plot.extract_data(epoch)
+        utterance_legand = np.zeros(shape = (locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
 
-        #labels for the agents, will be used in the plot
-        text_label = Plot.creating_dot_label(locations.shape[2], num_agents)
+        #labels for the entitles, will be used in the plot
+        text_label = Plot.creating_dot_label(locations.shape[2], num_agents)  #locations.shape[1] = num of entitels
         #opening a status bar
         bar = progressbar.ProgressBar(maxval=batch_size, \
                                       widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
@@ -124,15 +124,15 @@ class Plot:
         for batch in range(batch_size):
             fig, ax = plt.subplots()
             plt.axis([0, 16, 0, 16])
-            marker = np.array([dict_shapes[str(shape)] for shape in np.array(shapes[epoch, batch])])
-            colors_plot = np.array([dict_colors[str(color)] for color in np.array(colors[epoch, batch])])
+            marker = np.array([dict_shapes[str(shape)] for shape in np.array(shapes[batch])])
+            colors_plot = np.array([dict_colors[str(color)] for color in np.array(colors[batch])])
             for iteration in range(total_iterations):
                 plt.clf()
                 fig, ax = plt.subplots()
 
-                locations_y = locations[epoch, batch, iteration, :, 1]
-                locations_x = locations[epoch, batch, iteration, :, 0]
-                utterance_legand[:num_agents] = utterance[epoch, batch, iteration, :, :]
+                locations_y = locations[batch, iteration, :, 1]
+                locations_x = locations[batch, iteration, :, 0]
+                utterance_legand[:num_agents] = utterance[batch, iteration, :, :]
                 for obj in range(len(locations_y)):
                     sc = ax.scatter(locations_x[obj], locations_y[obj], color = colors_plot[obj], marker = marker[obj],
                                     label = utterance_legand[obj])
@@ -151,15 +151,24 @@ class Plot:
         bar.finish()
 
     @staticmethod
-    def extract_data_locations ():
+    def extract_data (epoch):
         #extracting the matrices containing the data from the file
-        matrix = np.load(out_matrix_file)
-        location_array, color_array, shape_array, num_agents = matrix.files
-        locations = matrix[location_array]
-        colors = matrix[color_array]
-        shapes = matrix[shape_array]
-        num_agents = matrix[num_agents][0]
-        return locations, colors, shapes, num_agents
+        with h5py.File('.\sentence.h5', 'r') as hf:
+            utterance_file_name = list(hf.keys())[epoch]
+            utterance = np.array(hf[utterance_file_name])
+        with h5py.File('.\locations.h5', 'r') as hf:
+            location_file_name = list(hf.keys())[epoch]
+            locations = np.array(hf[location_file_name])
+        with h5py.File('.\shape.h5', 'r') as hf:
+            shape_file_name = list(hf.keys())[epoch]
+            shapes = np.array(hf[shape_file_name])
+        with h5py.File('.\colors.h5', 'r') as hf:
+            color_file_name = list(hf.keys())[epoch]
+            colors = np.array(hf[color_file_name])
+        with h5py.File('.\players.h5', 'r') as hf:
+            agents_file_name = list(hf.keys())[epoch]
+            num_agents = np.array(hf[agents_file_name])
+        return locations, colors, shapes, num_agents, utterance
 
     @staticmethod
     def creating_dot_label (entitle, num_agents):
@@ -169,11 +178,6 @@ class Plot:
             text_label[landmark] = 'LM'
         return text_label
 
-    @staticmethod
-    def extract_utterance_matrix():
-        #extracting the matrices containing the data from the file
-        matrix = np.load(utterance_matrix_file)
-        utterance_array = matrix.files[0]
-        utterance = matrix[utterance_array]
 
-        return utterance
+
+
