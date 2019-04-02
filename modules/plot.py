@@ -64,21 +64,23 @@ class Plot:
 
 
     @staticmethod
-    def create_video(batch):
-        for batch in range(batch):
-            # create a video from all pictures in movies_dir of the format
-            # 'batchnum_batchiter_{int}d.png'
-            cmd = 'ffmpeg -f image2 -r 1/2 -i "'+movies_dir+'batchnum_{:02d}iter_%2d.png" -vcodec mpeg4 -y movie{:02d}.mp4'.format(batch, batch)
-            cmd = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE,
-                                   shell=True,
-                                   cwd=os.getcwd())
-            out, err = cmd.communicate()
-            if cmd.returncode == 0:
-                pass  # success
-            else:
-                print("ERROR")
-                print(out)
+    def create_video(max_batch, max_epoch):
+        for epoch in range(max_epoch):
+            for batch in range(max_batch):
+                # create a video from all pictures in movies_dir of the format
+                # 'batchnum_batchiter_{int}d.png'
+                cmd = 'ffmpeg -f image2 -r 1/2 -i "'+plots_dir+'epoch_'+str(epoch)+'batchnum_'+str(batch)+'iter_%d.png" -vcodec mpeg4 -y movie{:02d}_{:02d}.mp4'.format(epoch, batch)
+                cmd = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE,
+                                       shell=True,
+                                       cwd=os.getcwd())
+                out, err = cmd.communicate()
+                if cmd.returncode == 0:
+                    pass  # success
+                else:
+                    print("ERROR")
+                    print(out)
+                    print(err)
 
     def save_utterance_matrix(self,utterance, iteration):
         if iteration == 0:
