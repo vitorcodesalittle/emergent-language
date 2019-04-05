@@ -1,5 +1,7 @@
+import numpy
 import torch
 import torch.nn as nn
+from tensorflow import scan
 from torch import Tensor
 import matplotlib.pyplot as plt
 from torch.autograd import Variable
@@ -51,9 +53,6 @@ class GameModule(nn.Module):
         self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
         self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
 
-        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1], locations.shape[2], self.world_dim, self.num_agents) ###
-        self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes) ####
-
 
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
         goal_entities = (torch.rand(self.batch_size, self.num_agents, 1) * self.num_landmarks).floor().long() + self.num_agents
@@ -99,6 +98,7 @@ class GameModule(nn.Module):
                 self.memories["utterance"] = Variable(torch.zeros(self.batch_size, self.num_agents, self.num_agents, config.memory_size))
 
         agent_baselines = self.locations[:, :self.num_agents, :]
+        landmarks_location = self.locations[:, self.num_agents:, :]
 
         sort_idxs = torch.sort(self.goals[:,:,2])[1]
         self.sorted_goals = Variable(self.Tensor(self.goals.size()))
@@ -115,6 +115,10 @@ class GameModule(nn.Module):
         # [batch_size, num_agents, 2] [batch_size, num_agents, 1]
         self.observed_goals = torch.cat((new_obs, goal_agents), dim=2)
 
+        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1],
+                                 locations.shape[2], self.world_dim, self.num_agents,
+                                 self.observed_goals, self.sorted_goals, landmarks_location)
+        self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
 
 
     """

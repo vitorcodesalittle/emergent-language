@@ -1,15 +1,15 @@
 import datetime
 import os
 
+import numpy
 import numpy as np
 import matplotlib.pyplot as plt
-from tempfile import TemporaryFile
 import progressbar
 from time import sleep
 import subprocess
 from pathlib import Path
 import h5py
-
+import torch
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
@@ -27,9 +27,13 @@ def save_dataset(file_name, datasetname, dataset, mode):
         hf.create_dataset(datasetname, data=dataset)
     return epoch
 
+def open_dataset(file_name):
+    with h5py.File(file_name, 'r') as hf:
+        utterance_file_name = list(hf.keys())[epoch]
+        return np.array(hf[utterance_file_name])
 
 class Plot:
-    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents):
+    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, observed_goal, goals, landmarks_location):
         self.batch_num = batch_num
         self.total_iteration = total_iteration + 1
         self.world_dim = world_dim
@@ -37,6 +41,27 @@ class Plot:
         self.location_matrix = np.zeros(shape=(self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start',
         self.color_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
         self.shape_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
+        self.observed_goal_matrix = observed_goal
+        self.goal_matrix = goals
+        self.landmarks_location = landmarks_location
+
+    def save_goals(self):
+        save_dataset('.\observed_goals.h5', 'observed_goals', self.observed_goal_matrix, 'w')
+        save_dataset('.\sgoals.h5', 'goals', self.goal_matrix, 'w')
+        save_dataset('.\landmarks_location.h5', 'landmarks_location', self.landmarks_location, 'w')
+        goals_by_landmark = torch.zeros(self.goal_matrix.shape[:2], dtype=torch.int32)
+
+        for batch in range(0, 512):
+            for agent in range(self.num_agents):
+                agant_goal_x = self.goal_matrix[batch,0,0]
+                agant_goal_y = self.goal_matrix[batch, 0, 1]
+                # find close landmark
+                for i in range(self.landmarks_location.shape[1]):
+                    if numpy.isclose(self.landmarks_location[batch,i,0].item(), agant_goal_x, rtol=1e-01, atol=1e-01, equal_nan=False) \
+                            and numpy.isclose(self.landmarks_location[batch,i,1].item(), agant_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
+                        print("Batch {0} the Goal of agent {1} is to reach the landmark {2}".format(batch, agent, i))
+                        goals_by_landmark[batch, agent] = i
+        save_dataset('.\goals_by_landmark.h5', 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_h5_file(self, mode):
         save_dataset('.\locations.h5', 'location', self.location_matrix, mode)
@@ -46,22 +71,21 @@ class Plot:
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
-            self.location_matrix[:,0,:,:] =  locations
-            self.color_matrix[:,:,:] = colors
-            self.shape_matrix[:,:,:] = shapes
+            self.save_goals() # Curently only prints the goals, TODO: save the goals to first plot
+            self.location_matrix[:,0,:,:] = locations
+            self.color_matrix[:, :, :] = colors
+            self.shape_matrix[:, :, :] = shapes
+            self.goal_matrix[:, :, :] = self.goal_matrix
+            self.observed_goal_matrix[:, :, :] = self.observed_goal_matrix
 
-        elif iteration < self.total_iteration - 2: # i don't need to recreate the color ans shape matrices
-            self.location_matrix[:,iteration + 1,:,:] = locations.detach().numpy()
+        elif iteration < self.total_iteration - 2:
+            self.location_matrix[:, iteration + 1, :, :] = locations.detach().numpy()
         else:
-            self.location_matrix[:,iteration + 1,:,:] = locations.detach().numpy()
+            self.location_matrix[:, iteration + 1, :, :] = locations.detach().numpy()
             if os.path.isfile('.\locations.h5'):
-                # locations, colors, shapes, num_agents = Plot.extract_data_locations()
                 self.save_h5_file('a')
-
             else:
                 self.save_h5_file('w')
-
-
 
     @staticmethod
     def create_video(max_batch, max_epoch):
@@ -101,8 +125,8 @@ class Plot:
     def create_plots(epoch, batch_size):
 
         #extracting the matrices containing the data from the files
-        locations, colors, shapes, num_agents, utterance = Plot.extract_data(epoch)
-        utterance_legand = np.zeros(shape = (locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
+        locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch)
+        utterance_legand = np.zeros(shape=(locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
 
         #labels for the entitles, will be used in the plot
         text_label = Plot.creating_dot_label(locations.shape[2], num_agents)  #locations.shape[1] = num of entitels
@@ -118,6 +142,10 @@ class Plot:
             plt.axis([0, 16, 0, 16])
             marker = np.array([dict_shapes[str(shape)] for shape in np.array(shapes[batch])])
             colors_plot = np.array([dict_colors[str(color)] for color in np.array(colors[batch])])
+            title = ""
+            for agent in num_agents:
+                title += "the Goal of agent {1} is to reach the landmark {2}\n".format(agent, goals_by_landmark[batch,agent])
+
             for iteration in range(total_iterations):
                 plt.clf()
                 fig, ax = plt.subplots()
@@ -136,7 +164,7 @@ class Plot:
                 # Put a legend to the right of the current axis
                 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
                           fancybox=True, shadow=True, ncol=2 ,prop={'size': 5})
-
+                plt.title(title)
                 plt.savefig(plots_dir+'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
             bar.update(batch + 1)
             sleep(0.1)
@@ -145,22 +173,9 @@ class Plot:
     @staticmethod
     def extract_data (epoch):
         #extracting the matrices containing the data from the file
-        with h5py.File('.\sentence.h5', 'r') as hf:
-            utterance_file_name = list(hf.keys())[epoch]
-            utterance = np.array(hf[utterance_file_name])
-        with h5py.File('.\locations.h5', 'r') as hf:
-            location_file_name = list(hf.keys())[epoch]
-            locations = np.array(hf[location_file_name])
-        with h5py.File('.\shape.h5', 'r') as hf:
-            shape_file_name = list(hf.keys())[epoch]
-            shapes = np.array(hf[shape_file_name])
-        with h5py.File('.\colors.h5', 'r') as hf:
-            color_file_name = list(hf.keys())[epoch]
-            colors = np.array(hf[color_file_name])
-        with h5py.File('.\players.h5', 'r') as hf:
-            agents_file_name = list(hf.keys())[epoch]
-            num_agents = np.array(hf[agents_file_name])
-        return locations, colors, shapes, num_agents, utterance
+        return open_dataset('.\locations.h5'), open_dataset('.\colors.h5'), \
+               open_dataset('.\shape.h5'), open_dataset('.\players.h5'), \
+               open_dataset('.\sentence.h5'), open_dataset('.\goals_by_landmark.h5')
 
     @staticmethod
     def creating_dot_label (entitle, num_agents):
