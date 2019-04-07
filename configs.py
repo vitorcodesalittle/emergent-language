@@ -7,7 +7,7 @@ DEFAULT_BATCH_SIZE = 512
 DEFAULT_NUM_EPOCHS = 1000
 DEFAULT_LR = 5e-4
 SAVE_MODEL = True
-DEFAULT_MODEL_FILE = 'latest.pt'
+DEFAULT_MODEL_FILE = 'modules_weights.pt'
 
 DEFAULT_HIDDEN_SIZE = 256
 DEFAULT_DROPOUT = 0.1
@@ -172,14 +172,14 @@ default_agent_config = AgentModuleConfig(
         penalize_words=PENALIZE_WORDS,
         use_cuda=False)
 
-def get_training_config(kwargs):
+def get_training_config(kwargs,folder_dir):
     return TrainingConfig(
             num_epochs=kwargs['n_epochs'] or default_training_config.num_epochs,
             learning_rate=kwargs['learning_rate'] or default_training_config.learning_rate,
             load_model=bool(kwargs['load_model_weights']),
             load_model_file=kwargs['load_model_weights'] or default_training_config.load_model_file,
             save_model=default_training_config.save_model,
-            save_model_file=kwargs['save_model_weights'] or default_training_config.save_model_file,
+            save_model_file= folder_dir + (kwargs['save_model_weights'] or default_training_config.save_model_file),
             use_cuda=kwargs['use_cuda'])
 
 def get_game_config(kwargs):

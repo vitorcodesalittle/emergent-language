@@ -32,7 +32,7 @@ from modules.plot import Plot
 
 class GameModule(nn.Module):
 
-    def __init__(self, config, num_agents, num_landmarks):
+    def __init__(self, config, num_agents, num_landmarks, folder_dir):
         super(GameModule, self).__init__()
 
         self.batch_size = config.batch_size # scalar: num games in this batch
@@ -44,6 +44,7 @@ class GameModule(nn.Module):
         self.world_dim = config.world_dim
         self.time_horizon = config.time_horizon
         self.num_epochs = config.num_epochs
+        self.folder_dir = folder_dir
         if self.using_cuda:
             self.Tensor = torch.cuda.FloatTensor
         else:
@@ -117,7 +118,7 @@ class GameModule(nn.Module):
 
         self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1],
                                  locations.shape[2], self.world_dim, self.num_agents,
-                                 self.observed_goals, self.sorted_goals, landmarks_location)
+                                 self.observed_goals, self.sorted_goals, landmarks_location, self.folder_dir)
         self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
 
 

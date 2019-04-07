@@ -19,6 +19,7 @@ config = {
     }
 
 agent = torch.load('latest.pt')
+
 agent.reset()
 agent.train(False)
 code.interact(local=locals())
