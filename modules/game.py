@@ -118,7 +118,7 @@ class GameModule(nn.Module):
 
         self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1],
                                  locations.shape[2], self.world_dim, self.num_agents,
-                                 self.observed_goals, self.sorted_goals, landmarks_location, self.folder_dir)
+                                 self.goals, landmarks_location, self.folder_dir)
         self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
 
 

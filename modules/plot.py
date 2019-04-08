@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 import h5py
 import torch
+from torch import Tensor
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
@@ -29,7 +30,7 @@ def open_dataset(file_name):
         return np.array(hf[utterance_file_name])
 
 class Plot:
-    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, observed_goal, goals,
+    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, goals,
                  landmarks_location, folder_dir):
         self.batch_num = batch_num
         self.total_iteration = total_iteration + 1
@@ -38,28 +39,27 @@ class Plot:
         self.location_matrix = np.zeros(shape=(self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start',
         self.color_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
         self.shape_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
-        self.observed_goal_matrix = observed_goal
         self.goal_matrix = goals
         self.landmarks_location = landmarks_location
         self.folder_dir = folder_dir
 
-
     def save_goals(self):
-        save_dataset(self.folder_dir + '.\observed_goals.h5', 'observed_goals', self.observed_goal_matrix, 'w')
-        save_dataset(self.folder_dir + '.\sgoals.h5', 'goals', self.goal_matrix, 'w')
+        save_dataset(self.folder_dir + '.\goals.h5', 'goals', self.goal_matrix, 'w')
         save_dataset(self.folder_dir + '.\landmarks_location.h5', 'landmarks_location', self.landmarks_location, 'w')
-        goals_by_landmark = torch.zeros(self.goal_matrix.shape[:2], dtype=torch.int32)
+        goals_by_landmark = torch.zeros(size=(self.batch_num, self.num_agents, 2), dtype=torch.int32)
 
         for batch in range(0, 512):
             for agent in range(self.num_agents):
-                agent_goal_x = self.goal_matrix[batch,0,0]
+                agent_goal_x = self.goal_matrix[batch, 0, 0]
                 agent_goal_y = self.goal_matrix[batch, 0, 1]
+                goal_on = self.goal_matrix[batch, 0, 2]
                 # find close landmark
                 for i in range(self.landmarks_location.shape[1]):
                     if numpy.isclose(self.landmarks_location[batch,i,0].item(), agent_goal_x, rtol=1e-01, atol=1e-01, equal_nan=False) \
                             and numpy.isclose(self.landmarks_location[batch,i,1].item(), agent_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
                         # print("Batch {0} the Goal of agent {1} is to reach the landmark {2}".format(batch, agent, i))
-                        goals_by_landmark[batch, agent] = i + 1
+                        goals_by_landmark[batch, agent, 1] = int(goal_on)
+                        goals_by_landmark[batch, agent, 0] = i
         save_dataset(self.folder_dir + '.\goals_by_landmark.h5', 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_utterance_matrix(self,utterance, iteration):
@@ -89,7 +89,6 @@ class Plot:
             self.color_matrix[:, :, :] = colors
             self.shape_matrix[:, :, :] = shapes
             self.goal_matrix[:, :, :] = self.goal_matrix
-            self.observed_goal_matrix[:, :, :] = self.observed_goal_matrix
 
         elif iteration < self.total_iteration - 2:
             self.location_matrix[:, iteration + 1, :, :] = locations.detach().numpy()
@@ -146,8 +145,8 @@ class Plot:
             colors_plot = np.array([dict_colors[str(color)] for color in np.array(colors[batch])])
             title = ""
             for agent in range(num_agents):
-                title += "the Goal of agent {0} is to reach the landmark {1}\n".format(agent + 1,
-                                                                                       goals_by_landmark[batch, agent] + 1)
+                title += "the Goal of agent {0} is that agent {1} will reach LM {1}\n"\
+                    .format(agent, goals_by_landmark[batch, agent, 0], goals_by_landmark[batch, agent, 1])
 
             for iteration in range(total_iterations):
                 plt.clf()
