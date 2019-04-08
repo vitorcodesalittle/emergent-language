@@ -117,7 +117,7 @@ def main():
         if num_agents == game_config.max_agents and num_landmarks == game_config.max_landmarks:
             scheduler.step(losses[game_config.max_agents][game_config.max_landmarks][-1])
 
-        torch.save(agent.state_dict(), training_config.save_model_file)
+    torch.save(agent.state_dict(), training_config.save_model_file)
     print("Saved agent model weights at %s" % training_config.save_model_file)
     writer.close() # close the tensorboard temp files
 
