@@ -57,8 +57,8 @@ class Plot:
                 for i in range(self.landmarks_location.shape[1]):
                     if numpy.isclose(self.landmarks_location[batch,i,0].item(), agent_goal_x, rtol=1e-01, atol=1e-01, equal_nan=False) \
                             and numpy.isclose(self.landmarks_location[batch,i,1].item(), agent_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
-                        goals_by_landmark[batch, agent, 1] = int(goal_on)
                         goals_by_landmark[batch, agent, 0] = i + self.num_agents + 1
+                        goals_by_landmark[batch, agent, 1] = int(goal_on) + 1
         save_dataset(self.folder_dir + '.\goals_by_landmark.h5', 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_utterance_matrix(self,utterance, iteration):
