@@ -50,16 +50,15 @@ class Plot:
 
         for batch in range(0, 512):
             for agent in range(self.num_agents):
-                agent_goal_x = self.goal_matrix[batch, 0, 0]
-                agent_goal_y = self.goal_matrix[batch, 0, 1]
-                goal_on = self.goal_matrix[batch, 0, 2]
+                agent_goal_x = self.goal_matrix[batch, agent, 0]
+                agent_goal_y = self.goal_matrix[batch, agent, 1]
+                goal_on = self.goal_matrix[batch, agent, 2]
                 # find close landmark
                 for i in range(self.landmarks_location.shape[1]):
                     if numpy.isclose(self.landmarks_location[batch,i,0].item(), agent_goal_x, rtol=1e-01, atol=1e-01, equal_nan=False) \
                             and numpy.isclose(self.landmarks_location[batch,i,1].item(), agent_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
-                        # print("Batch {0} the Goal of agent {1} is to reach the landmark {2}".format(batch, agent, i))
                         goals_by_landmark[batch, agent, 1] = int(goal_on)
-                        goals_by_landmark[batch, agent, 0] = i
+                        goals_by_landmark[batch, agent, 0] = i + self.num_agents + 1
         save_dataset(self.folder_dir + '.\goals_by_landmark.h5', 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_utterance_matrix(self,utterance, iteration):
@@ -146,7 +145,7 @@ class Plot:
             title = ""
             for agent in range(num_agents):
                 title += "the Goal of agent {0} is that agent {1} will reach LM {1}\n"\
-                    .format(agent, goals_by_landmark[batch, agent, 0], goals_by_landmark[batch, agent, 1])
+                    .format(agent + 1, goals_by_landmark[batch, agent, 0], goals_by_landmark[batch, agent, 1])
 
             for iteration in range(total_iterations):
                 plt.clf()
@@ -156,13 +155,13 @@ class Plot:
                 locations_x = locations[batch, iteration, :, 0]
                 utterance_legand[:num_agents] = utterance[batch, iteration, :, :]
                 for obj in range(len(locations_y)):
-                    sc = ax.scatter(locations_x[obj], locations_y[obj], color = colors_plot[obj], marker = marker[obj],
+                    ax.scatter(locations_x[obj], locations_y[obj], color = colors_plot[obj], marker = marker[obj],
                                     label = np.around(utterance_legand[obj], decimals = 3))
-                    ax.annotate(text_label[obj], (locations_x[obj]+0.2, locations_y[obj]+0.2))
+                    ax.annotate(text_label[obj], (locations_x[obj]+0.05, locations_y[obj]+0.05))
                     plt.draw()
                 # Shrink current axis's height by 10% on the bottom ,  so the legand will not be over the plot
                 box = ax.get_position()
-                ax.set_position([box.x0, box.y0 + box.height * 0.1, box.width, box.height * 0.9])
+                ax.set_position([box.x0, box.y0 + box.height * 0.05, box.width, box.height * 0.9])
                 # Put a legend to the right of the current axis
                 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
                           fancybox=True, shadow=True, ncol=2 ,prop={'size': 5})
