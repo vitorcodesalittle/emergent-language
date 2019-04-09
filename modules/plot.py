@@ -138,19 +138,16 @@ class Plot:
 
         total_iterations = locations.shape[1]
         for batch in range(batch_size):
-            fig, ax = plt.subplots()
-            plt.axis([0, 16, 0, 16])
             marker = np.array([dict_shapes[str(shape)] for shape in np.array(shapes[batch])])
             colors_plot = np.array([dict_colors[str(color)] for color in np.array(colors[batch])])
             title = ""
             for agent in range(num_agents):
                 title += "the Goal of agent {0} is that agent {1} will reach LM {1}\n"\
                     .format(agent + 1, goals_by_landmark[batch, agent, 0], goals_by_landmark[batch, agent, 1])
-
             for iteration in range(total_iterations):
                 plt.clf()
                 fig, ax = plt.subplots()
-
+                plt.axis([0, 16, 0, 16])
                 locations_y = locations[batch, iteration, :, 1]
                 locations_x = locations[batch, iteration, :, 0]
                 utterance_legand[:num_agents] = utterance[batch, iteration, :, :]
