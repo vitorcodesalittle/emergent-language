@@ -7,10 +7,13 @@ from time import sleep
 import subprocess
 import h5py
 import torch
+import string
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
 epoch = -1
+threshold = 0.1
+ABC = list(string.ascii_uppercase)
 
 
 def save_dataset(file_name, datasetname, dataset, mode):
@@ -100,7 +103,6 @@ class Plot:
         for epoch in range(max_epoch):
             for batch in range(max_batch):
                 # create a video from all pictures in movies_dir of the format
-                # 'batchnum_batchiter_{int}d.png'
                 cmd = 'ffmpeg -f image2 -r 1/2 -i "'+ folder_dir + 'movies' + os.sep + 'epoch_' \
                       +str(epoch)+'batchnum_'+str(batch)+'iter_%d.png" -vcodec mpeg4 -y movie{:02d}_{:02d}.mp4'.format(epoch, batch)
                 cmd = subprocess.Popen(cmd, stdout=subprocess.PIPE,
@@ -115,15 +117,12 @@ class Plot:
                     print(out)
                     print(err)
 
-
-
-
     @staticmethod
     def create_plots(epoch, batch_size):
 
         #extracting the matrices containing the data from the files
         locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data()
-        utterance_legand = np.zeros(shape=(locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
+        # utterance_legand = np.zeros(shape=(locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
 
         #labels for the entitles, will be used in the plot
         text_label = Plot.creating_dot_label(locations.shape[2], num_agents)  #locations.shape[1] = num of entitels
@@ -147,10 +146,15 @@ class Plot:
                 plt.axis([0, 16, 0, 16])
                 locations_y = locations[batch, iteration, :, 1]
                 locations_x = locations[batch, iteration, :, 0]
-                utterance_legand[:num_agents] = utterance[batch, iteration, :, :]
+                utterance_legand = Plot.utterance_with_threshold(utterance[batch, iteration, :, :])
+                # utterance_legand[:num_agents] = utterance[batch, iteration, :, :]
                 for obj in range(len(locations_y)):
-                    ax.scatter(locations_x[obj], locations_y[obj], color = colors_plot[obj], marker = marker[obj],
-                                    label = np.around(utterance_legand[obj], decimals = 3))
+                    if obj < num_agents:
+                        ax.scatter(locations_x[obj], locations_y[obj], color = colors_plot[obj], marker = marker[obj],
+                                        label = utterance_legand[obj])
+                    else:
+                        ax.scatter(locations_x[obj], locations_y[obj],
+                                   color=colors_plot[obj], marker=marker[obj])
                     ax.annotate(text_label[obj], (locations_x[obj]+0.05, locations_y[obj]+0.05))
                     plt.draw()
                 # Shrink current axis's height by 10% on the bottom ,  so the legand will not be over the plot
@@ -158,7 +162,7 @@ class Plot:
                 ax.set_position([box.x0, box.y0 + box.height * 0.05, box.width, box.height * 0.9])
                 # Put a legend to the right of the current axis
                 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
-                          fancybox=True, shadow=True, ncol=2 ,prop={'size': 5})
+                          fancybox=True, shadow=True, ncol=2, prop={'size': 10})
                 plt.title(title)
                 plt.savefig('plots' + os.sep + 'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
             bar.update(batch + 1)
@@ -176,9 +180,15 @@ class Plot:
     def creating_dot_label(entitle, num_agents):
         text_label = [None] * entitle
         text_label[:num_agents] = [str(num) for num in range(num_agents)]
-        for landmark in range(entitle-num_agents):
-            text_label[landmark] = 'LM' + " " + str(landmark)
+        for landmark in range(num_agents, entitle):
+            text_label[landmark] = 'LM' + " " + str(landmark - num_agents)
         return text_label
+
+    @staticmethod
+    def utterance_with_threshold(utterance):
+        utterance = [[ABC[i] for i in range(utterance.shape[1]) if  utterance[j, i] >= threshold] for j in range(utterance.shape[0])]
+        return utterance
+
 
 
 

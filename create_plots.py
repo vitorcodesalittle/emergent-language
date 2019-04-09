@@ -6,7 +6,7 @@ epoch_num = 10
 from pathlib import Path
 
 def main():
-    folder_name = '1420-09042019-20190409T112502Z-001' #enter the folder name here
+    folder_name = '1446-09042019'
     folder_dir = str(Path(os.getcwd())) + os.sep + folder_name + os.sep
     os.chdir(folder_dir)
     start = time.time()

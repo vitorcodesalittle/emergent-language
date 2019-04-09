@@ -38,7 +38,7 @@ parser.add_argument('--use-cuda', action='store_true', help='if specified enable
    Create the new folder for the experiment
    :return: Full path of the new folder (str), and only the folder name
    """
-def create_new_dir ():
+def create_new_dir():
     folder_dir = str(Path(os.getcwd())) + os.sep + str(time.strftime("%H%M-%d%m%Y")) + os.sep
     folder_name_suffix = 0
     while True:
@@ -58,9 +58,6 @@ def create_new_dir ():
     return folder_dir
 
 
-
-
-
 def print_losses(epoch, losses, dists, game_config, writer):
     for a in range(game_config.min_agents, game_config.max_agents + 1):
         for l in range(game_config.min_landmarks, game_config.max_landmarks + 1):
@@ -73,6 +70,7 @@ def print_losses(epoch, losses, dists, game_config, writer):
 
             print("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f][min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
     print("_________________________")
+
 
 def main():
     folder_dir = create_new_dir()
