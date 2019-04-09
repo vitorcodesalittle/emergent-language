@@ -1,11 +1,6 @@
-import numpy
 import torch
 import torch.nn as nn
-from tensorflow import scan
-from torch import Tensor
-import matplotlib.pyplot as plt
 from torch.autograd import Variable
-import numpy as np
 
 from modules.plot import Plot
 
@@ -29,6 +24,7 @@ from modules.plot import Plot
 
         config needs: -batch_size, -using_utterances, -world_dim, -vocab_size, -memory_size, -num_colors -num_shapes
 """
+
 
 class GameModule(nn.Module):
 
@@ -54,7 +50,6 @@ class GameModule(nn.Module):
         self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
         self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
 
-
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
         goal_entities = (torch.rand(self.batch_size, self.num_agents, 1) * self.num_landmarks).floor().long() + self.num_agents
         goal_locations = self.Tensor(self.batch_size, self.num_agents, 2)
@@ -79,7 +74,6 @@ class GameModule(nn.Module):
         # [batch_size, num_agents, 3]
         self.goals = Variable(torch.cat((goal_locations, goal_agents), 2))
         goal_agents = Variable(goal_agents)
-
 
         if self.using_cuda:
             self.memories = {
@@ -120,7 +114,6 @@ class GameModule(nn.Module):
                                  locations.shape[2], self.world_dim, self.num_agents,
                                  self.goals, landmarks_location, self.folder_dir)
         self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
-
 
     """
     Updates game state given all movements and utterances and returns accrued cost

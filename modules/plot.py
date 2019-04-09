@@ -1,16 +1,12 @@
-import datetime
 import os
-
 import numpy
 import numpy as np
 import matplotlib.pyplot as plt
 import progressbar
 from time import sleep
 import subprocess
-from pathlib import Path
 import h5py
 import torch
-from torch import Tensor
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
@@ -24,10 +20,12 @@ def save_dataset(file_name, datasetname, dataset, mode):
         hf.create_dataset(datasetname, data=dataset)
     return epoch
 
+
 def open_dataset(file_name):
     with h5py.File(file_name, 'r') as hf:
         utterance_file_name = list(hf.keys())[epoch]
         return np.array(hf[utterance_file_name])
+
 
 class Plot:
     def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, goals,
@@ -57,8 +55,8 @@ class Plot:
                 for i in range(self.landmarks_location.shape[1]):
                     if numpy.isclose(self.landmarks_location[batch,i,0].item(), agent_goal_x, rtol=1e-01, atol=1e-01, equal_nan=False) \
                             and numpy.isclose(self.landmarks_location[batch,i,1].item(), agent_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
-                        goals_by_landmark[batch, agent, 0] = i + self.num_agents + 1
-                        goals_by_landmark[batch, agent, 1] = int(goal_on) + 1
+                        goals_by_landmark[batch, agent, 0] = i
+                        goals_by_landmark[batch, agent, 1] = int(goal_on)
         save_dataset(self.folder_dir + '.\goals_by_landmark.h5', 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_utterance_matrix(self,utterance, iteration):
@@ -69,7 +67,6 @@ class Plot:
         else:
             self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
             if os.path.isfile(self.folder_dir + '.\sentence.h5'):
-                # locations, colors, shapes, num_agents = Plot.extract_data_locations()
                 save_dataset(self.folder_dir + '.\sentence.h5', 'sentence', self.utterance_matrix, 'a')
 
             else:
@@ -83,7 +80,7 @@ class Plot:
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
-            self.save_goals() # Curently only prints the goals, TODO: save the goals to first plot
+            self.save_goals()
             self.location_matrix[:,0,:,:] = locations
             self.color_matrix[:, :, :] = colors
             self.shape_matrix[:, :, :] = shapes
@@ -125,7 +122,7 @@ class Plot:
     def create_plots(epoch, batch_size):
 
         #extracting the matrices containing the data from the files
-        locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch)
+        locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data()
         utterance_legand = np.zeros(shape=(locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
 
         #labels for the entitles, will be used in the plot
@@ -143,7 +140,7 @@ class Plot:
             title = ""
             for agent in range(num_agents):
                 title += "the Goal of agent {0} is that agent {1} will reach LM {1}\n"\
-                    .format(agent + 1, goals_by_landmark[batch, agent, 0], goals_by_landmark[batch, agent, 1])
+                    .format(agent, goals_by_landmark[batch, agent, 1], goals_by_landmark[batch, agent, 0])
             for iteration in range(total_iterations):
                 plt.clf()
                 fig, ax = plt.subplots()
@@ -169,17 +166,17 @@ class Plot:
         bar.finish()
 
     @staticmethod
-    def extract_data (epoch):
+    def extract_data():
         #extracting the matrices containing the data from the file
-        return open_dataset('.\locations.h5'), open_dataset('.\colors.h5'), \
-               open_dataset('.\shape.h5'), open_dataset('.\players.h5'), \
-               open_dataset('.\sentence.h5'), open_dataset('.\goals_by_landmark.h5')
+        return open_dataset(os.getcwd()+os.sep+'locations.h5'), open_dataset(os.getcwd()+os.sep+'colors.h5'), \
+               open_dataset(os.getcwd()+os.sep+'shape.h5'), open_dataset(os.getcwd()+os.sep+'players.h5'), \
+               open_dataset(os.getcwd()+os.sep+'sentence.h5'), open_dataset(os.getcwd()+os.sep+'goals_by_landmark.h5')
 
     @staticmethod
-    def creating_dot_label (entitle, num_agents):
+    def creating_dot_label(entitle, num_agents):
         text_label = [None] * entitle
-        text_label[:num_agents] = [str(num + 1) for num in range(num_agents)]
-        for landmark in range(num_agents, entitle):
+        text_label[:num_agents] = [str(num) for num in range(num_agents)]
+        for landmark in range(entitle-num_agents):
             text_label[landmark] = 'LM' + " " + str(landmark)
         return text_label
 
