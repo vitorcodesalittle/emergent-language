@@ -2,9 +2,12 @@ TODO:
 --------
 Change agent name to agent index (start from 0 and not 1)
 Fix the path for loading data in create plots
+get plot dir from args
 
 
-
-clean the project - create utils and move there all relevant code
+clean the project:
+    - create utils and move all relevant code there
+    - document all code (use google convention)
+    - Write readme
 
 

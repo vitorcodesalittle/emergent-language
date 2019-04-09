@@ -63,7 +63,7 @@ class GameModule(nn.Module):
         # [batch_size, num_entities, 2]
         self.locations = Variable(locations)
         # [batch_size, num_entities, 2]
-        self.physical = Variable(torch.cat((self.colors,self.shapes), 2).float())
+        self.physical = Variable(torch.cat((self.colors, self.shapes), 2).float())
 
         for b in range(self.batch_size):
             goal_agents[b, :, 0] = torch.randperm(self.num_agents)
