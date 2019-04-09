@@ -33,12 +33,11 @@ parser.add_argument('--save-model-weights', type=str, help='if specified save th
 parser.add_argument('--use-cuda', action='store_true', help='if specified enables training on CUDA (default disabled)')
 
 
-#open a new file for each run
-"""
-   Create the new folder for the experiment
-   :return: Full path of the new folder (str), and only the folder name
-   """
 def create_new_dir():
+    """
+       Create the new folder for the experiment
+       :return: Full path of the new folder (str), and only the folder name
+    """
     folder_dir = str(Path(os.getcwd())) + os.sep + str(time.strftime("%H%M-%d%m%Y")) + os.sep
     folder_name_suffix = 0
     while True:
@@ -51,10 +50,9 @@ def create_new_dir():
     plots_dir = folder_dir + 'plots' + os.sep
     movies_dir = folder_dir + 'movies' + os.sep
     tensorboard_dir = folder_dir + 'tensorboard' + os.sep
-    os.makedirs(plots_dir) #open the folder
-    os.makedirs(movies_dir) #open the folder
+    os.makedirs(plots_dir)
+    os.makedirs(movies_dir)
 
-    # subprocess.Popen(r'explorer ' + folder_full_path.replace('/', '\\'))
     return folder_dir
 
 

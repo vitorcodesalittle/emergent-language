@@ -8,6 +8,7 @@ import subprocess
 import h5py
 import torch
 import string
+from pathlib import Path
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
@@ -16,11 +17,11 @@ threshold = 0.1
 ABC = list(string.ascii_uppercase)
 
 
-def save_dataset(file_name, datasetname, dataset, mode):
+def save_dataset(file_name, dataset_name, dataset, mode):
     with h5py.File(file_name, mode) as hf:
         epoch = len(list(hf.keys()))
-        datasetname = datasetname + str(epoch)
-        hf.create_dataset(datasetname, data=dataset)
+        dataset_name = dataset_name + str(epoch)
+        hf.create_dataset(dataset_name, data=dataset)
     return epoch
 
 
@@ -42,11 +43,25 @@ class Plot:
         self.shape_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
         self.goal_matrix = goals
         self.landmarks_location = landmarks_location
-        self.folder_dir = folder_dir
+        self.filenames(folder_dir)
+
+
+    def filenames(self, folder_dir):
+        if not os.path.isabs(folder_dir):
+            folder_dir = str(Path(os.getcwd())) + os.sep + folder_dir + os.sep
+        self.location_file_name = folder_dir + 'locations.h5'
+        self.colors_file_name = folder_dir + 'colors.h5'
+        self.shape_file_name = folder_dir + 'shape.h5'
+        self.players_file_name = folder_dir + 'players.h5'
+        self.sentence_file_name = folder_dir + 'sentence.h5'
+        self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
+        self.goals_file_name = folder_dir + 'goals.h5'
+        self.landmarks_location_file_name = folder_dir + 'landmarks_location.h5'
+        self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
 
     def save_goals(self):
-        save_dataset(self.folder_dir + '.\goals.h5', 'goals', self.goal_matrix, 'w')
-        save_dataset(self.folder_dir + '.\landmarks_location.h5', 'landmarks_location', self.landmarks_location, 'w')
+        save_dataset(self.goals_file_name, 'goals', self.goal_matrix, 'w')
+        save_dataset(self.landmarks_location_file_name, 'landmarks_location', self.landmarks_location, 'w')
         goals_by_landmark = torch.zeros(size=(self.batch_num, self.num_agents, 2), dtype=torch.int32)
 
         for batch in range(0, 512):
@@ -60,7 +75,7 @@ class Plot:
                             and numpy.isclose(self.landmarks_location[batch,i,1].item(), agent_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
                         goals_by_landmark[batch, agent, 0] = i
                         goals_by_landmark[batch, agent, 1] = int(goal_on)
-        save_dataset(self.folder_dir + '.\goals_by_landmark.h5', 'goals_by_landmark', goals_by_landmark, 'w')
+        save_dataset(self.goals_by_landmark_filename, 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_utterance_matrix(self,utterance, iteration):
         if iteration == 0:
@@ -69,17 +84,17 @@ class Plot:
             self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
         else:
             self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
-            if os.path.isfile(self.folder_dir + '.\sentence.h5'):
-                save_dataset(self.folder_dir + '.\sentence.h5', 'sentence', self.utterance_matrix, 'a')
+            if os.path.isfile(self.sentence_file_name):
+                save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, 'a')
 
             else:
-                save_dataset(self.folder_dir + '.\sentence.h5', 'sentence', self.utterance_matrix, 'w')
+                save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, 'w')
 
     def save_h5_file(self, mode):
-        save_dataset(self.folder_dir + '.\locations.h5', 'location', self.location_matrix, mode)
-        save_dataset(self.folder_dir + '.\colors.h5', 'colors', self.color_matrix, mode)
-        save_dataset(self.folder_dir + '.\shape.h5', 'shape', self.shape_matrix, mode)
-        save_dataset(self.folder_dir + '.\players.h5', 'players', self.num_agents, mode)
+        save_dataset(self.location_file_name, 'location', self.location_matrix, mode)
+        save_dataset(self.colors_file_name, 'colors', self.color_matrix, mode)
+        save_dataset(self.shape_file_name, 'shape', self.shape_matrix, mode)
+        save_dataset(self.players_file_name, 'players', self.num_agents, mode)
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
@@ -93,7 +108,7 @@ class Plot:
             self.location_matrix[:, iteration + 1, :, :] = locations.detach().numpy()
         else:
             self.location_matrix[:, iteration + 1, :, :] = locations.detach().numpy()
-            if os.path.isfile(self.folder_dir + os.sep + '.\locations.h5'):
+            if os.path.isfile(self.location_file_name):
                 self.save_h5_file('a')
             else:
                 self.save_h5_file('w')
@@ -169,12 +184,11 @@ class Plot:
             sleep(0.1)
         bar.finish()
 
-    @staticmethod
-    def extract_data():
+    def extract_data(self):
         #extracting the matrices containing the data from the file
-        return open_dataset(os.getcwd()+os.sep+'locations.h5'), open_dataset(os.getcwd()+os.sep+'colors.h5'), \
-               open_dataset(os.getcwd()+os.sep+'shape.h5'), open_dataset(os.getcwd()+os.sep+'players.h5'), \
-               open_dataset(os.getcwd()+os.sep+'sentence.h5'), open_dataset(os.getcwd()+os.sep+'goals_by_landmark.h5')
+        return open_dataset(self.location_file_name), open_dataset(self.colors_file_name), \
+               open_dataset(self.shape_file_name), open_dataset(self.players_file_name), \
+               open_dataset(self.sentence_file_name), open_dataset(self.goals_by_landmark_file_name)
 
     @staticmethod
     def creating_dot_label(entitle, num_agents):
@@ -186,7 +200,7 @@ class Plot:
 
     @staticmethod
     def utterance_with_threshold(utterance):
-        utterance = [[ABC[i] for i in range(utterance.shape[1]) if  utterance[j, i] >= threshold] for j in range(utterance.shape[0])]
+        utterance = [[ABC[i] for i in range(utterance.shape[1]) if utterance[j, i] >= threshold] for j in range(utterance.shape[0])]
         return utterance
 
 
