@@ -28,10 +28,10 @@ def save_dataset(file_name, dataset_name, dataset, mode):
 def open_dataset(file_name, epoch):
     try:
         with h5py.File(file_name, 'r') as hf:
-            utterance_file_name = list(hf.keys())[epoch]
-            return np.array(hf[utterance_file_name])
-    except:
-        pass
+            inner_file_name = list(hf.keys())[epoch]
+            return np.array(hf[inner_file_name])
+    except Exception as e:
+        print(e)
 
 class Plot:
     def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, goals,
@@ -193,9 +193,10 @@ class Plot:
         bar.finish()
 
     @staticmethod
-    def extract_data(epoch):
+    def extract_data(epoch, dir=None):
         #extracting the matrices containing the data from the file
-        dir = os.getcwd() + os.sep
+        if dir is None:
+            dir = os.getcwd() + os.sep
         return open_dataset(dir + 'locations.h5', epoch), open_dataset(dir + 'colors.h5', epoch), \
                open_dataset(dir +'shape.h5', epoch), open_dataset(dir +'players.h5', epoch), \
                open_dataset(dir +'sentence.h5', epoch), open_dataset(dir +'goals_by_landmark.h5', epoch)

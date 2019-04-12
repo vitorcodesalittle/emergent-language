@@ -2,7 +2,7 @@ import argparse
 import re
 import time
 
-import Statistics
+from Statistics import Statistics
 from modules.plot import Plot
 import os
 from pathlib import Path
@@ -19,23 +19,23 @@ def get_newest_h5_dir():
 
 
 def main(dir, batch_size):
-    if not os.path.isabs(dir):
-        dir = str(Path(os.getcwd())) + os.sep + dir + os.sep
-    os.chdir(dir)
-    start = time.time()
-    for epoch in epoch_range:
-        Plot.create_plots(epoch, batch_size)
-    end = time.time()
-    print("create_plots: " + str(end - start))
-    start = time.time()
-    Plot.create_video(batch_range, epoch_num, dir)
-    end = time.time()
-    print("create_video: " + str(end - start))
+    # if not os.path.isabs(dir):
+    #     dir = str(Path(os.getcwd())) + os.sep + dir + os.sep
+    # os.chdir(dir)
+    # start = time.time()
+    # for epoch in epoch_range:
+    #     Plot.create_plots(epoch, batch_size)
+    # end = time.time()
+    # print("create plots: " + str(end - start))
+    # start = time.time()
+    # Plot.create_video(batch_range, epoch_num, dir)
+    # end = time.time()
+    # print("create video: " + str(end - start))
     start = time.time()
     stats = Statistics(dir)
     stats.calculate(epoch_range, batch_range)
     end = time.time()
-    print("create_video: " + str(end - start))
+    print("create statistics: " + str(end - start))
 
 
 if __name__ == "__main__":
@@ -45,6 +45,6 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', required=False, type=str, default=512,
                         help='Batch size')
     args = parser.parse_args()
-    args.dir = '2057-10042019'
+    args.dir = '/home/yael/Documents/Yael - Private/Workspace/emergent-language/1446-09042019/'
     args.batch_size = 15
     main(args.dir, args.batch_size)

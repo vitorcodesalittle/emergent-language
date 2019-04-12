@@ -3,6 +3,7 @@ import numpy as np
 
 threshold = 0.05
 
+
 class Statistics:
     def __init__(self, dir):
         self.dir = dir
@@ -11,7 +12,7 @@ class Statistics:
 
     def calculate(self, epoch_range, batch_range):
         for epoch in epoch_range:
-            locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch)
+            locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch, dir=self.dir)
             total_iterations = locations.shape[1]
             for batch in batch_range:
                 for iteration in range(total_iterations):
