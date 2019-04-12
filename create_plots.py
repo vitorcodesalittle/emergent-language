@@ -8,7 +8,7 @@ from pathlib import Path
 max_batch = 10
 epoch_num = 10
 DIR_REGEX = '\d*-\d*'
-epoch_range = range(0, 25, 5)
+epoch_range = range(0, 360, 50)
 
 
 def get_newest_h5_dir():
@@ -19,6 +19,7 @@ def get_newest_h5_dir():
 def main(dir, batch_size):
     if not os.path.isabs(dir):
         dir = str(Path(os.getcwd())) + os.sep + dir + os.sep
+    os.chdir(dir)
     start = time.time()
     for epoch in epoch_range:
         Plot.create_plots(epoch, batch_size)
@@ -37,4 +38,6 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', required=False, type=str, default=512,
                         help='Batch size')
     args = parser.parse_args()
+    args.dir = '2057-10042019'
+    args.batch_size = 15
     main(args.dir, args.batch_size)

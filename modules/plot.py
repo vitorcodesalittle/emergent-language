@@ -13,7 +13,7 @@ from pathlib import Path
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
 epoch = -1
-threshold = 0.1
+threshold = 0.05
 ABC = list(string.ascii_uppercase)
 
 
@@ -25,11 +25,13 @@ def save_dataset(file_name, dataset_name, dataset, mode):
     return epoch
 
 
-def open_dataset(file_name):
-    with h5py.File(file_name, 'r') as hf:
-        utterance_file_name = list(hf.keys())[epoch]
-        return np.array(hf[utterance_file_name])
-
+def open_dataset(file_name, epoch):
+    try:
+        with h5py.File(file_name, 'r') as hf:
+            utterance_file_name = list(hf.keys())[epoch]
+            return np.array(hf[utterance_file_name])
+    except:
+        pass
 
 class Plot:
     def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, goals,
@@ -46,6 +48,7 @@ class Plot:
         self.filenames(folder_dir)
 
 
+
     def filenames(self, folder_dir):
         if not os.path.isabs(folder_dir):
             folder_dir = str(Path(os.getcwd())) + os.sep + folder_dir + os.sep
@@ -57,11 +60,9 @@ class Plot:
         self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
         self.goals_file_name = folder_dir + 'goals.h5'
         self.landmarks_location_file_name = folder_dir + 'landmarks_location.h5'
-        self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
 
     def save_goals(self):
-        save_dataset(self.goals_file_name, 'goals', self.goal_matrix, 'w')
-        save_dataset(self.landmarks_location_file_name, 'landmarks_location', self.landmarks_location, 'w')
+
         goals_by_landmark = torch.zeros(size=(self.batch_num, self.num_agents, 2), dtype=torch.int32)
 
         for batch in range(0, 512):
@@ -75,7 +76,16 @@ class Plot:
                             and numpy.isclose(self.landmarks_location[batch,i,1].item(), agent_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
                         goals_by_landmark[batch, agent, 0] = i
                         goals_by_landmark[batch, agent, 1] = int(goal_on)
-        save_dataset(self.goals_by_landmark_filename, 'goals_by_landmark', goals_by_landmark, 'w')
+
+        if os.path.isfile(self.location_file_name):
+            save_dataset(self.goals_file_name, 'goals', self.goal_matrix, 'a')
+            save_dataset(self.landmarks_location_file_name, 'landmarks_location', self.landmarks_location, 'a')
+            save_dataset(self.goals_by_landmark_file_name, 'goals_by_landmark', goals_by_landmark, 'a')
+
+        else:
+            save_dataset(self.goals_file_name, 'goals', self.goal_matrix, 'w')
+            save_dataset(self.landmarks_location_file_name, 'landmarks_location', self.landmarks_location, 'w')
+            save_dataset(self.goals_by_landmark_file_name, 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_utterance_matrix(self,utterance, iteration):
         if iteration == 0:
@@ -136,7 +146,7 @@ class Plot:
     def create_plots(epoch, batch_size):
 
         #extracting the matrices containing the data from the files
-        locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data()
+        locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch)
         # utterance_legand = np.zeros(shape=(locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
 
         #labels for the entitles, will be used in the plot
@@ -153,7 +163,7 @@ class Plot:
             colors_plot = np.array([dict_colors[str(color)] for color in np.array(colors[batch])])
             title = ""
             for agent in range(num_agents):
-                title += "the Goal of agent {0} is that agent {1} will reach LM {1}\n"\
+                title += "the Goal of agent {0} is that agent {1} will reach LM {2}\n"\
                     .format(agent, goals_by_landmark[batch, agent, 1], goals_by_landmark[batch, agent, 0])
             for iteration in range(total_iterations):
                 plt.clf()
@@ -184,11 +194,14 @@ class Plot:
             sleep(0.1)
         bar.finish()
 
-    def extract_data(self):
+    @staticmethod
+    def extract_data(epoch):
         #extracting the matrices containing the data from the file
-        return open_dataset(self.location_file_name), open_dataset(self.colors_file_name), \
-               open_dataset(self.shape_file_name), open_dataset(self.players_file_name), \
-               open_dataset(self.sentence_file_name), open_dataset(self.goals_by_landmark_file_name)
+        dir = os.getcwd() + os.sep
+        return open_dataset(dir + 'locations.h5', epoch), open_dataset(dir + 'colors.h5', epoch), \
+               open_dataset(dir +'shape.h5', epoch), open_dataset(dir +'players.h5', epoch), \
+               open_dataset(dir +'sentence.h5', epoch), open_dataset(dir +'goals_by_landmark.h5', epoch)
+
 
     @staticmethod
     def creating_dot_label(entitle, num_agents):
