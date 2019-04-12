@@ -47,8 +47,6 @@ class Plot:
         self.landmarks_location = landmarks_location
         self.filenames(folder_dir)
 
-
-
     def filenames(self, folder_dir):
         if not os.path.isabs(folder_dir):
             folder_dir = str(Path(os.getcwd())) + os.sep + folder_dir + os.sep
@@ -124,9 +122,9 @@ class Plot:
                 self.save_h5_file('w')
 
     @staticmethod
-    def create_video(max_batch, max_epoch, folder_dir):
-        for epoch in range(max_epoch):
-            for batch in range(max_batch):
+    def create_video(batch_range, epoch_range, folder_dir):
+        for epoch in epoch_range:
+            for batch in batch_range:
                 # create a video from all pictures in movies_dir of the format
                 cmd = 'ffmpeg -f image2 -r 1/2 -i "'+ folder_dir + 'movies' + os.sep + 'epoch_' \
                       +str(epoch)+'batchnum_'+str(batch)+'iter_%d.png" -vcodec mpeg4 -y movie{:02d}_{:02d}.mp4'.format(epoch, batch)

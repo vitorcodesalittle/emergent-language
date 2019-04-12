@@ -1,11 +1,13 @@
 import argparse
 import re
 import time
+
+import Statistics
 from modules.plot import Plot
 import os
 from pathlib import Path
 
-max_batch = 10
+batch_range = range(10)
 epoch_num = 10
 DIR_REGEX = '\d*-\d*'
 epoch_range = range(0, 360, 50)
@@ -26,7 +28,12 @@ def main(dir, batch_size):
     end = time.time()
     print("create_plots: " + str(end - start))
     start = time.time()
-    Plot.create_video(max_batch, epoch_num, dir)
+    Plot.create_video(batch_range, epoch_num, dir)
+    end = time.time()
+    print("create_video: " + str(end - start))
+    start = time.time()
+    stats = Statistics(dir)
+    stats.calculate(epoch_range, batch_range)
     end = time.time()
     print("create_video: " + str(end - start))
 
