@@ -3,6 +3,8 @@ TODO:
 Change agent name to agent index (start from 0 and not 1) - done
 Fix the path for loading data in create plots - done (chcek this on win)
 get plot dir from args - done
+document how well are the agents fulfilling there goal
+document the statistics of use of words
 
 
 clean the project:
