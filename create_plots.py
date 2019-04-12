@@ -45,6 +45,6 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', required=False, type=str, default=512,
                         help='Batch size')
     args = parser.parse_args()
-    args.dir = '/home/yael/Documents/Yael - Private/Workspace/emergent-language/1446-09042019/'
+    args.dir = '/home/yael/Documents/Yael - Private/Workspace/emergent-language/2057-10042019/'
     args.batch_size = 15
     main(args.dir, args.batch_size)

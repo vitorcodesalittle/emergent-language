@@ -22,5 +22,5 @@ class Statistics:
                         for i in range(cur_utter.shape[1]):
                             if cur_utter[j, i] >= threshold:
                                 self.utterance_stat[i] += 1
-            np.true_divide(self.utterance_stat, self.counter)
-            print(self.utterance_stat)
+        self.utterance_stat = np.true_divide(self.utterance_stat, self.counter)
+        print(self.utterance_stat)
