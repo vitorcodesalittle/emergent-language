@@ -1,13 +1,12 @@
 import os
-import numpy
-import numpy as np
-import matplotlib.pyplot as plt
-import progressbar
-from time import sleep
-import subprocess
-import h5py
-import torch
 import string
+import subprocess
+# import progressbar
+# from time import sleep
+
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
 from pathlib import Path
 
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
@@ -34,8 +33,8 @@ def open_dataset(file_name, epoch):
         print(e)
 
 class Plot:
-    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, goals,
-                 landmarks_location, folder_dir):
+    def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, goals_by_landmark,
+                 folder_dir):
         self.batch_num = batch_num
         self.total_iteration = total_iteration + 1
         self.world_dim = world_dim
@@ -43,8 +42,7 @@ class Plot:
         self.location_matrix = np.zeros(shape=(self.batch_num, self.total_iteration , num_locations, location_dim)) # total_iteration + 1 - so it will include the 'start',
         self.color_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
         self.shape_matrix = np.zeros(shape=(self.batch_num, num_locations, 1))
-        self.goal_matrix = goals
-        self.landmarks_location = landmarks_location
+        self.goals_by_landmark = goals_by_landmark
         self.filenames(folder_dir)
 
     def filenames(self, folder_dir):
@@ -56,34 +54,6 @@ class Plot:
         self.players_file_name = folder_dir + 'players.h5'
         self.sentence_file_name = folder_dir + 'sentence.h5'
         self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
-        self.goals_file_name = folder_dir + 'goals.h5'
-        self.landmarks_location_file_name = folder_dir + 'landmarks_location.h5'
-
-    def save_goals(self):
-
-        goals_by_landmark = torch.zeros(size=(self.batch_num, self.num_agents, 2), dtype=torch.int32)
-
-        for batch in range(0, 512):
-            for agent in range(self.num_agents):
-                agent_goal_x = self.goal_matrix[batch, agent, 0]
-                agent_goal_y = self.goal_matrix[batch, agent, 1]
-                goal_on = self.goal_matrix[batch, agent, 2]
-                # find close landmark
-                for i in range(self.landmarks_location.shape[1]):
-                    if numpy.isclose(self.landmarks_location[batch,i,0].item(), agent_goal_x, rtol=1e-01, atol=1e-01, equal_nan=False) \
-                            and numpy.isclose(self.landmarks_location[batch,i,1].item(), agent_goal_y, rtol=1e-01, atol=1e-01, equal_nan=False):
-                        goals_by_landmark[batch, agent, 0] = i
-                        goals_by_landmark[batch, agent, 1] = int(goal_on)
-
-        if os.path.isfile(self.location_file_name):
-            save_dataset(self.goals_file_name, 'goals', self.goal_matrix, 'a')
-            save_dataset(self.landmarks_location_file_name, 'landmarks_location', self.landmarks_location, 'a')
-            save_dataset(self.goals_by_landmark_file_name, 'goals_by_landmark', goals_by_landmark, 'a')
-
-        else:
-            save_dataset(self.goals_file_name, 'goals', self.goal_matrix, 'w')
-            save_dataset(self.landmarks_location_file_name, 'landmarks_location', self.landmarks_location, 'w')
-            save_dataset(self.goals_by_landmark_file_name, 'goals_by_landmark', goals_by_landmark, 'w')
 
     def save_utterance_matrix(self,utterance, iteration):
         if iteration == 0:
@@ -93,24 +63,26 @@ class Plot:
         else:
             self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
             if os.path.isfile(self.sentence_file_name):
-                save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, 'a')
-
+                self.save_h5_file('a', utterance='ON')
             else:
-                save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, 'w')
+                self.save_h5_file('w', utterance='ON')
 
-    def save_h5_file(self, mode):
-        save_dataset(self.location_file_name, 'location', self.location_matrix, mode)
-        save_dataset(self.colors_file_name, 'colors', self.color_matrix, mode)
-        save_dataset(self.shape_file_name, 'shape', self.shape_matrix, mode)
-        save_dataset(self.players_file_name, 'players', self.num_agents, mode)
+    def save_h5_file(self, mode, utterance=None):
+        if utterance is None:
+            save_dataset(self.location_file_name, 'location', self.location_matrix, mode)
+            save_dataset(self.colors_file_name, 'colors', self.color_matrix, mode)
+            save_dataset(self.shape_file_name, 'shape', self.shape_matrix, mode)
+            save_dataset(self.players_file_name, 'players', self.num_agents, mode)
+            save_dataset(self.goals_by_landmark_file_name, 'goals', self.goals_by_landmark, mode)
+        elif utterance is not None:
+            save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, mode)
+
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
-            self.save_goals()
             self.location_matrix[:,0,:,:] = locations
             self.color_matrix[:, :, :] = colors
             self.shape_matrix[:, :, :] = shapes
-            self.goal_matrix[:, :, :] = self.goal_matrix
 
         elif iteration < self.total_iteration - 2:
             self.location_matrix[:, iteration + 1, :, :] = locations.detach().numpy()
@@ -142,19 +114,13 @@ class Plot:
 
     @staticmethod
     def create_plots(epoch, batch_size):
-
-        #extracting the matrices containing the data from the files
         locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch)
-        # utterance_legand = np.zeros(shape=(locations.shape[2],utterance.shape[3])) #locations.shape[2] = num of entitels, utterance.shape[3] = vcob size
-
-        #labels for the entitles, will be used in the plot
         text_label = Plot.creating_dot_label(locations.shape[2], num_agents)  #locations.shape[1] = num of entitels
         #opening a status bar
-        bar = progressbar.ProgressBar(maxval=batch_size, \
-                                      widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-        bar.start()
+        # bar = progressbar.ProgressBar(maxval=batch_size, \
+        #                               widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+        # bar.start()
         #creating the plots
-
         total_iterations = locations.shape[1]
         for batch in range(batch_size):
             marker = np.array([dict_shapes[str(shape)] for shape in np.array(shapes[batch])])
@@ -162,7 +128,7 @@ class Plot:
             title = ""
             for agent in range(num_agents):
                 title += "the Goal of agent {0} is that agent {1} will reach LM {2}\n"\
-                    .format(agent, goals_by_landmark[batch, agent, 1], goals_by_landmark[batch, agent, 0])
+                    .format(goals_by_landmark[batch, agent, 1], agent, goals_by_landmark[batch, agent, 0])
             for iteration in range(total_iterations):
                 plt.clf()
                 fig, ax = plt.subplots()
@@ -170,7 +136,6 @@ class Plot:
                 locations_y = locations[batch, iteration, :, 1]
                 locations_x = locations[batch, iteration, :, 0]
                 utterance_legand = Plot.utterance_with_threshold(utterance[batch, iteration, :, :])
-                # utterance_legand[:num_agents] = utterance[batch, iteration, :, :]
                 for obj in range(len(locations_y)):
                     if obj < num_agents:
                         ax.scatter(locations_x[obj], locations_y[obj], color = colors_plot[obj], marker = marker[obj],
@@ -188,18 +153,25 @@ class Plot:
                           fancybox=True, shadow=True, ncol=2, prop={'size': 10})
                 plt.title(title)
                 plt.savefig('plots' + os.sep + 'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
-            bar.update(batch + 1)
-            sleep(0.1)
-        bar.finish()
+            # bar.update(batch + 1)
+            # sleep(0.1)
+        # bar.finish()
 
     @staticmethod
-    def extract_data(epoch, dir=None):
+    def extract_data(epoch, dir=None, calculate_utternace=None,calculate_dist=None):
         #extracting the matrices containing the data from the file
         if dir is None:
             dir = os.getcwd() + os.sep
-        return open_dataset(dir + 'locations.h5', epoch), open_dataset(dir + 'colors.h5', epoch), \
+        if calculate_utternace is None:
+            return open_dataset(dir + 'locations.h5', epoch), open_dataset(dir + 'colors.h5', epoch), \
                open_dataset(dir +'shape.h5', epoch), open_dataset(dir +'players.h5', epoch), \
                open_dataset(dir +'sentence.h5', epoch), open_dataset(dir +'goals_by_landmark.h5', epoch)
+        elif calculate_utternace is not None:
+            return open_dataset(dir +'goals_by_landmark.h5', epoch)
+        elif calculate_dist is not None:
+            return open_dataset(dir +'dist_from_goal.h5', epoch)
+
+
 
 
     @staticmethod
@@ -214,6 +186,12 @@ class Plot:
     def utterance_with_threshold(utterance):
         utterance = [[ABC[i] for i in range(utterance.shape[1]) if utterance[j, i] >= threshold] for j in range(utterance.shape[0])]
         return utterance
+
+    @staticmethod
+    def create_sucees_reate_plot (sucess_rate_per_epoch, sucess_rate_per_epoch_std):
+        epoch_num = [x for x in range(len(sucess_rate_per_epoch))]
+        plt.errorbar(epoch_num, sucess_rate_per_epoch, yerr=sucess_rate_per_epoch_std, fmt='o')
+        plt.savefig('sucess_rate.png')
 
 
 

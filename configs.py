@@ -1,6 +1,5 @@
-import pdb
-from typing import NamedTuple, Any, List
-import numpy as np
+from typing import NamedTuple, Any
+
 import constants
 
 DEFAULT_BATCH_SIZE = 512

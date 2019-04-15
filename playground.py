@@ -1,8 +1,8 @@
-import torch
-from modules.game import GameModule
-from configs import default_game_config, get_game_config
 import code
 
+import torch
+
+from configs import default_game_config
 
 config = {
         'batch_size': default_game_config.batch_size,

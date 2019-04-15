@@ -1,12 +1,10 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
-
-from modules.processing import ProcessingModule
-from modules.goal_predicting import GoalPredictingProcessingModule
 from modules.action import ActionModule
+from modules.goal_predicting import GoalPredictingProcessingModule
+from modules.processing import ProcessingModule
 from modules.word_counting import WordCountingModule
-
+from torch.autograd import Variable
 
 """
     The AgentModule is the general module that's responsible for the execution of

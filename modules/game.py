@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
-
 from modules.plot import Plot
+from torch.autograd import Variable
 
 """
     The GameModule takes in all actions(movement, utterance, goal prediction)
@@ -93,7 +92,7 @@ class GameModule(nn.Module):
                 self.memories["utterance"] = Variable(torch.zeros(self.batch_size, self.num_agents, self.num_agents, config.memory_size))
 
         agent_baselines = self.locations[:, :self.num_agents, :]
-        landmarks_location = self.locations[:, self.num_agents:, :]
+        goals_by_landmark = torch.cat((goal_entities.type(torch.FloatTensor), goal_agents), 2).float()
 
         sort_idxs = torch.sort(self.goals[:,:,2])[1]
         self.sorted_goals = Variable(self.Tensor(self.goals.size()))
@@ -110,9 +109,9 @@ class GameModule(nn.Module):
         # [batch_size, num_agents, 2] [batch_size, num_agents, 1]
         self.observed_goals = torch.cat((new_obs, goal_agents), dim=2)
 
-        self.plots_matrix = Plot(self.batch_size,self.time_horizon,locations.shape[1],
+        self.plots_matrix = Plot(self.batch_size,self.time_horizon, self.num_entities,
                                  locations.shape[2], self.world_dim, self.num_agents,
-                                 self.goals, landmarks_location, self.folder_dir)
+                                 goals_by_landmark, self.folder_dir)
         self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
 
     """
@@ -194,14 +193,12 @@ class GameModule(nn.Module):
     def compute_movement_cost(self, movements):
         return torch.sum(torch.sqrt(torch.sum(torch.pow(movements, 2), -1)))
 
+
+        #dist, dist_per_agent = game.get_avg_agent_to_goal_distance() #add to tensorboard
+
     def get_avg_agent_to_goal_distance(self):
-        return torch.sum(
-                    torch.sqrt(
-                        torch.sum(
-                            torch.pow(
-                                self.locations[:,:self.num_agents,:] - self.sorted_goals,
-                                2),
-                            -1)
-                        )
-                    )
+        dist_from_goal = self.locations[:,:self.num_agents,:] - self.sorted_goals
+        euclidean_distance_per_batch =  torch.sqrt(torch.sum(torch.pow(dist_from_goal,2), -1))
+        return torch.sum(euclidean_distance_per_batch), euclidean_distance_per_batch
+
 

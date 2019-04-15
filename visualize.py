@@ -1,5 +1,5 @@
-from graphviz import Digraph
 import torch
+from graphviz import Digraph
 from torch.autograd import Variable
 
 

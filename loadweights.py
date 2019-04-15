@@ -1,6 +1,7 @@
 import torch
-import configs
 from modules.agent import AgentModule
+
+import configs
 from train import parser
 
 args = vars(parser.parse_args())
