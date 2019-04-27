@@ -7,7 +7,7 @@ from Statistics import Statistics
 batch_range = range(10)
 epoch_num = 10
 DIR_REGEX = '\d*-\d*'
-epoch_range = range(0, 20, 1)
+epoch_range = range(0, 1000, 50)
 
 
 def get_newest_dir():
@@ -23,8 +23,8 @@ def main(dir, batch_size):
     #     dir = str(Path(os.getcwd())) + os.sep + dir + os.sep
     os.chdir(dir)
     # # start = time.time()
-    for epoch in epoch_range:
-        Plot.create_plots(epoch, batch_size)
+    # for epoch in epoch_range:
+    #     Plot.create_plots(epoch, batch_size)
     # # end = time.time()
     # # print("create plots: " + str(end - start))
     # # Plot.create_video(batch_range, epoch_num, dir)

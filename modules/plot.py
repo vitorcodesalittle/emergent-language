@@ -162,14 +162,14 @@ class Plot:
         #extracting the matrices containing the data from the file
         if dir is None:
             dir = os.getcwd() + os.sep
-        if calculate_utternace is None:
+        if calculate_utternace is None and calculate_dist is None:
             return open_dataset(dir + 'locations.h5', epoch), open_dataset(dir + 'colors.h5', epoch), \
                open_dataset(dir +'shape.h5', epoch), open_dataset(dir +'players.h5', epoch), \
                open_dataset(dir +'sentence.h5', epoch), open_dataset(dir +'goals_by_landmark.h5', epoch)
         elif calculate_utternace is not None:
-            return open_dataset(dir +'goals_by_landmark.h5', epoch)
+            return open_dataset(os.getcwd() + os.sep +'sentence.h5', epoch)
         elif calculate_dist is not None:
-            return open_dataset(dir +'dist_from_goal.h5', epoch)
+            return open_dataset(os.getcwd() + os.sep + 'dist_from_goal.h5', epoch)
 
 
 
@@ -188,9 +188,12 @@ class Plot:
         return utterance
 
     @staticmethod
-    def create_sucees_reate_plot (sucess_rate_per_epoch, sucess_rate_per_epoch_std):
-        epoch_num = [x for x in range(len(sucess_rate_per_epoch))]
-        plt.errorbar(epoch_num, sucess_rate_per_epoch, yerr=sucess_rate_per_epoch_std, fmt='o')
+    def create_sucees_reate_plot (sucess_rate_per_epoch, sucess_rate_per_epoch_std, epoch_range):
+        epoch_num = [str(x) for x in epoch_range]
+        plt.figure(figsize=(20, 3))
+        sucess_rate_per_epoch_std = [round(sucess_rate_per_epoch_std[x].item(),2) for x in range(len(sucess_rate_per_epoch_std))]
+        plt.bar(epoch_num, sucess_rate_per_epoch, yerr= sucess_rate_per_epoch_std , align='edge')
+        plt.tight_layout()
         plt.savefig('sucess_rate.png')
 
 
