@@ -1,4 +1,4 @@
-
+#creat data set
 vocab = ['go', 'to', 'agent', 'red', 'green', 'blue', 'landmark',
              'circle', 'triangle', 'continue', 'next', 'ahead', 'done',
              'good', 'stay', 'goal']
