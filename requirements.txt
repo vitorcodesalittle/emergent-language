@@ -1,3 +1,4 @@
+pandas
 progressbar
 numpy
 matplotlib

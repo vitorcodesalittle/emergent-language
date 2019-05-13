@@ -13,7 +13,7 @@ DEFAULT_DROPOUT = 0.1
 DEFAULT_FEAT_VEC_SIZE = 256
 DEFAULT_TIME_HORIZON = 16
 
-USE_UTTERANCES = True
+USE_UTTERANCES = False
 PENALIZE_WORDS = True
 DEFAULT_VOCAB_SIZE = 20
 DEFAULT_OOV_PROB = 1
@@ -33,8 +33,10 @@ TrainingConfig = NamedTuple('TrainingConfig', [
     ('load_model_file', str),
     ('save_model', bool),
     ('save_model_file', str),
-    ('use_cuda', bool)
-    ])
+    ('use_cuda', bool),
+    ('no_utterances', bool),
+    ('pre_defined_utterances', bool)
+])
 
 GameConfig = NamedTuple('GameConfig', [
     ('batch_size', int),
@@ -96,7 +98,8 @@ AgentModuleConfig = NamedTuple("AgentModuleConfig", [
     ('word_counter', WordCountingModuleConfig),
     ('use_utterances', bool),
     ('penalize_words', bool),
-    ('use_cuda', bool)
+    ('use_cuda', bool),
+    ('pre_defined_utterances', bool)
     ])
 
 default_training_config = TrainingConfig(
@@ -106,7 +109,10 @@ default_training_config = TrainingConfig(
         load_model_file="",
         save_model=SAVE_MODEL,
         save_model_file=DEFAULT_MODEL_FILE,
-        use_cuda=False)
+        use_cuda=False,
+        no_utterances=False,
+        pre_defined_utterances=False
+ )
 
 default_word_counter_config = WordCountingModuleConfig(
         vocab_size=DEFAULT_VOCAB_SIZE,
@@ -169,7 +175,8 @@ default_agent_config = AgentModuleConfig(
         vocab_size=DEFAULT_VOCAB_SIZE,
         use_utterances=USE_UTTERANCES,
         penalize_words=PENALIZE_WORDS,
-        use_cuda=False)
+        use_cuda=False,
+        pre_defined_utterances=False)
 
 def get_training_config(kwargs,folder_dir):
     return TrainingConfig(
@@ -179,7 +186,9 @@ def get_training_config(kwargs,folder_dir):
             load_model_file=kwargs['load_model_weights'] or default_training_config.load_model_file,
             save_model=default_training_config.save_model,
             save_model_file= folder_dir + (kwargs['save_model_weights'] or default_training_config.save_model_file),
-            use_cuda=kwargs['use_cuda'])
+            use_cuda=kwargs['use_cuda'],
+            no_utterances=kwargs['no_utterances'],
+            pre_defined_utterances=kwargs['pre_defined_utterances'])
 
 def get_game_config(kwargs):
     return GameConfig(
@@ -198,6 +207,7 @@ def get_game_config(kwargs):
         time_horizon=kwargs['n_timesteps'] or default_game_config.time_horizon,
         num_epochs=kwargs['n_epochs'] or default_game_config.num_epochs,
     )
+
 
 def get_agent_config(kwargs):
     vocab_size = kwargs['vocab_size'] or DEFAULT_VOCAB_SIZE
@@ -241,6 +251,7 @@ def get_agent_config(kwargs):
             vocab_size=vocab_size,
             use_utterances=use_utterances,
             penalize_words=penalize_words,
-            use_cuda=use_cuda
+            use_cuda=use_cuda,
+            pre_defined_utterances=kwargs['pre_defined_utterances']
             )
 

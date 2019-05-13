@@ -1,5 +1,10 @@
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
+
+from modules.predefined_utterances_module import PredefinedUtterancesModule
+from modules.processing import ProcessingModule
+from modules.goal_predicting import GoalPredictingProcessingModule
 from modules.action import ActionModule
 from modules.goal_predicting import GoalPredictingProcessingModule
 from modules.processing import ProcessingModule
@@ -27,10 +32,14 @@ class AgentModule(nn.Module):
             self.utterance_pooling = nn.AdaptiveMaxPool2d((1,config.feat_vec_size))
             if self.penalizing_words:
                 self.word_counter = WordCountingModule(config.word_counter)
+        if self.pre_defined_utterances:
+            self.utterance_processor = PredefinedUtterancesModule()
+
 
     def init_from_config(self, config):
         self.training = True
         self.using_utterances = config.use_utterances
+        self.pre_defined_utterances = config.pre_defined_utterances
         self.penalizing_words = config.penalize_words
         self.using_cuda = config.use_cuda
         self.time_horizon = config.time_horizon
@@ -42,7 +51,7 @@ class AgentModule(nn.Module):
 
     def reset(self):
         self.total_cost = torch.zeros_like(self.total_cost)
-        if self.using_utterances and self.penalizing_words:
+        if self.using_utterances and self.penalizing_words: #TODO: what should we do for pre_defined_utteranc?
             self.word_counter.word_counts = torch.zeros_like(self.word_counter.word_counts)
 
     def train(self, mode=True):
@@ -81,14 +90,14 @@ class AgentModule(nn.Module):
             for other_agent in range(game.num_agents):
                 self.process_utterances(game, agent, other_agent, utterance_processes, goal_predictions)
             return self.utterance_pooling(utterance_processes)
-        else:
+        else: #TODO: what should we do for pre_defined_utterances?
             return None
 
     def get_action(self, game, agent, physical_feat, utterance_feat, movements, utterances):
         movement, utterance, new_mem = self.action_processor(physical_feat, game.observed_goals[:,agent], game.memories["action"][:,agent], self.training, utterance_feat)
         self.update_mem(game, "action", new_mem, agent)
         movements[:,agent,:] = movement
-        if self.using_utterances:
+        if self.using_utterances and self.pre_defined_utterances:
             utterances[:,agent,:] = utterance
 
     def forward(self, game):
@@ -100,6 +109,9 @@ class AgentModule(nn.Module):
             if self.using_utterances:
                 utterances = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
                 goal_predictions = Variable(self.Tensor(game.batch_size, game.num_agents, game.num_agents, self.goal_size))
+
+            if self.pre_defined_utterances:
+                utterances = self.utterance_processor.generate_sentences(game)
 
             for agent in range(game.num_agents):
                 physical_feat = self.get_physical_feat(game, agent)
@@ -116,6 +128,6 @@ class AgentModule(nn.Module):
                     'locations': game.locations,
                     'movements': movements,
                     'loss': cost})
-                if self.using_utterances:
+                if self.using_utterances and self.pre_defined_utterances:
                     timesteps[-1]['utterances'] = utterances
         return self.total_cost, timesteps

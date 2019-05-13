@@ -50,14 +50,14 @@ class GameModule(nn.Module):
         self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
 
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
-        goal_entities = (torch.rand(self.batch_size, self.num_agents, 1) * self.num_landmarks).floor().long() + self.num_agents
+        self.goal_entities = (torch.rand(self.batch_size, self.num_agents, 1) * self.num_landmarks).floor().long() + self.num_agents
         goal_locations = self.Tensor(self.batch_size, self.num_agents, 2)
 
         if self.using_cuda:
             locations = locations.cuda()
             self.colors = self.colors.cuda()
             self.shapes = self.shapes.cuda()
-            goal_entities = goal_entities.cuda()
+            self.goal_entities = self.goal_entities.cuda()
 
         # [batch_size, num_entities, 2]
         self.locations = Variable(locations)
@@ -68,7 +68,7 @@ class GameModule(nn.Module):
             goal_agents[b, :, 0] = torch.randperm(self.num_agents)
 
         for b in range(self.batch_size):
-            goal_locations[b] = self.locations.data[b][goal_entities[b].squeeze()]
+            goal_locations[b] = self.locations.data[b][self.goal_entities[b].squeeze()]
 
         # [batch_size, num_agents, 3]
         self.goals = Variable(torch.cat((goal_locations, goal_agents), 2))
@@ -92,7 +92,7 @@ class GameModule(nn.Module):
                 self.memories["utterance"] = Variable(torch.zeros(self.batch_size, self.num_agents, self.num_agents, config.memory_size))
 
         agent_baselines = self.locations[:, :self.num_agents, :]
-        goals_by_landmark = torch.cat((goal_entities.type(torch.FloatTensor), goal_agents), 2).float()
+        goals_by_landmark = torch.cat((self.goal_entities.type(torch.FloatTensor), goal_agents), 2).float()
 
         sort_idxs = torch.sort(self.goals[:,:,2])[1]
         self.sorted_goals = Variable(self.Tensor(self.goals.size()))

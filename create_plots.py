@@ -7,7 +7,7 @@ from Statistics import Statistics
 batch_range = range(10)
 epoch_num = 10
 DIR_REGEX = '\d*-\d*'
-epoch_range = range(0, 1000, 50)
+epoch_range = range(0, 350)
 
 
 def get_newest_dir():
