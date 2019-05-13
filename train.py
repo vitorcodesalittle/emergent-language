@@ -18,7 +18,7 @@ import create_plots  # for the file dir function
 
 parser = argparse.ArgumentParser(description="Trains the agents for cooperative communication task")
 parser.add_argument('--no-utterances', action='store_true', help='if specified disables the communications channel (default enabled)')
-parser.add_argument('--pre_defined_utterances', action='store_true', help='if specified dont train utterenece')
+parser.add_argument('--pre_defined_utterances', default=True, action='store_true', help='if specified dont train utterenece')
 parser.add_argument('--penalize-words', action='store_true', help='if specified penalizes uncommon word usage (default disabled)')
 parser.add_argument('--n-epochs', '-e', type=int, help='if specified sets number of training epochs (default 5000)')
 parser.add_argument('--learning-rate', type=float, help='if specified sets learning rate (default 1e-3)')

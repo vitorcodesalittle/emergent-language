@@ -33,8 +33,8 @@ class AgentModule(nn.Module):
             if self.penalizing_words:
                 self.word_counter = WordCountingModule(config.word_counter)
         if self.pre_defined_utterances:
-            self.utterance_processor = PredefinedUtterancesModule()
-
+            # self.utterance_processor = PredefinedUtterancesModule() #TODO can't assign a network here.
+            self.create_data_set = PredefinedUtterancesModule()
 
     def init_from_config(self, config):
         self.training = True
@@ -111,7 +111,7 @@ class AgentModule(nn.Module):
                 goal_predictions = Variable(self.Tensor(game.batch_size, game.num_agents, game.num_agents, self.goal_size))
 
             if self.pre_defined_utterances:
-                utterances = self.utterance_processor.generate_sentences(game)
+                utterances = self.create_data_set.generate_sentences(game, t)
 
             for agent in range(game.num_agents):
                 physical_feat = self.get_physical_feat(game, agent)
