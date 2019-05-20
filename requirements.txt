@@ -1,5 +1,5 @@
 pandas
-progressbar
 numpy
 matplotlib
 tensorboardX
+h5py

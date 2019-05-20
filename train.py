@@ -18,7 +18,7 @@ import create_plots  # for the file dir function
 
 parser = argparse.ArgumentParser(description="Trains the agents for cooperative communication task")
 parser.add_argument('--no-utterances', action='store_true', help='if specified disables the communications channel (default enabled)')
-parser.add_argument('--pre_defined_utterances', default=True, action='store_true', help='if specified dont train utterenece')
+parser.add_argument('--pre_defined_utterances', default=False, action='store_true', help='if specified dont train utterenece')
 parser.add_argument('--penalize-words', action='store_true', help='if specified penalizes uncommon word usage (default disabled)')
 parser.add_argument('--n-epochs', '-e', type=int, help='if specified sets number of training epochs (default 5000)')
 parser.add_argument('--learning-rate', type=float, help='if specified sets learning rate (default 1e-3)')
@@ -35,7 +35,7 @@ parser.add_argument('--world-dim', '-w', type=int, help='if specified sets the s
 parser.add_argument('--oov-prob', '-o', type=int, help='higher value penalize uncommon words less when penalizing words (default 6)')
 parser.add_argument('--load-model-weights', type=str, help='if specified start with saved model weights saved at file given by this argument')
 parser.add_argument('--save-model-weights', type=str, help='if specified save the model weights at file given by this argument')
-parser.add_argument('--use-cuda', action='store_true', help='if specified enables training on CUDA (default disabled)')
+parser.add_argument('--use-cuda', action='store_true', default=False, help='if specified enables training on CUDA (default disabled)')
 parser.add_argument('--upload-trained-model', default=False, help='if specified the trained model weights will be uploaded and the network will continue the run with then')
 parser.add_argument('--dir-upload-model', required=False, type=str, default= create_plots.get_newest_dir() , help='Directory to folder containing the trained model')
 

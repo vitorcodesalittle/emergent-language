@@ -137,24 +137,24 @@ class AgentModule(nn.Module):
                     'loss': cost})
                 if self.using_utterances and self.pre_defined_utterances:
                     timesteps[-1]['utterances'] = utterances
-
-        input_regex = "agent_color|agent_shape|lm_color|lm_shape"
-        dataset_log = pd.DataFrame(index=range(game.batch_size), columns=range(47))
-        dataset_log.loc[:, 0] = "<input>"
-        dataset_log.loc[:, 1:4] = self.df_utterance[0].filter(regex=input_regex).values
-        dataset_log.loc[:, 5:8] = self.df_utterance[1].filter(regex=input_regex).values
-        dataset_log.loc[:, 9] = "</input>"
-        dataset_log.loc[:, 10] = "<dialog>"
-        for j, i in enumerate(range(0,32,2)):
-            dataset_log.loc[:, 11 + i] = self.df_utterance[0].filter(regex='Full Sentence{0}'.format(j)).values
-            dataset_log.loc[:, 11 + i + 1] = self.df_utterance[1].filter(regex='Full Sentence{0}'.format(j)).values
-        dataset_log.loc[:, 43] = "</dialog>"
-        dataset_log.loc[:, 44] = "<output>"
-        dataset_log.loc[:, 45] = self.df_utterance[0].filter(regex="dist").values
-        dataset_log.loc[:, 46] = self.df_utterance[1].filter(regex="dist").values
-        dataset_log.loc[:, 47] = "</output>"
-        # global folder_dir
-        with open("dataset.csv", 'a', newline='') as f:
-            dataset_log.to_csv(f, mode='a', header=False, index=False)
+        if self.pre_defined_utterances:
+            input_regex = "agent_color|agent_shape|lm_color|lm_shape"
+            dataset_log = pd.DataFrame(index=range(game.batch_size), columns=range(47))
+            dataset_log.loc[:, 0] = "<input>"
+            dataset_log.loc[:, 1:4] = self.df_utterance[0].filter(regex=input_regex).values
+            dataset_log.loc[:, 5:8] = self.df_utterance[1].filter(regex=input_regex).values
+            dataset_log.loc[:, 9] = "</input>"
+            dataset_log.loc[:, 10] = "<dialog>"
+            for j, i in enumerate(range(0,32,2)):
+                dataset_log.loc[:, 11 + i] = self.df_utterance[0].filter(regex='Full Sentence{0}'.format(j)).values
+                dataset_log.loc[:, 11 + i + 1] = self.df_utterance[1].filter(regex='Full Sentence{0}'.format(j)).values
+            dataset_log.loc[:, 43] = "</dialog>"
+            dataset_log.loc[:, 44] = "<output>"
+            dataset_log.loc[:, 45] = self.df_utterance[0].filter(regex="dist").values
+            dataset_log.loc[:, 46] = self.df_utterance[1].filter(regex="dist").values
+            dataset_log.loc[:, 47] = "</output>"
+            # global folder_dir
+            with open("dataset.csv", 'a', newline='') as f:
+                dataset_log.to_csv(f, mode='a', header=False, index=False)
 
         return self.total_cost, timesteps
