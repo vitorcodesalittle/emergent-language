@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -10,6 +12,8 @@ from modules.goal_predicting import GoalPredictingProcessingModule
 from modules.processing import ProcessingModule
 from modules.word_counting import WordCountingModule
 from torch.autograd import Variable
+import pandas as pd
+import numpy as np
 
 """
     The AgentModule is the general module that's responsible for the execution of
@@ -102,6 +106,9 @@ class AgentModule(nn.Module):
 
     def forward(self, game):
         timesteps = []
+        col_name = ['agent_color', 'agent_shape', 'lm_color', 'lm_shape', 'sentence']
+        self.df_utterance = [pd.DataFrame(index=range(512), columns=col_name, dtype=np.int64) for i in range(game.num_agents)]
+
         for t in range(self.time_horizon):
             movements = Variable(self.Tensor(game.batch_size, game.num_entities, self.movement_dim_size).zero_())
             utterances = None
@@ -111,7 +118,7 @@ class AgentModule(nn.Module):
                 goal_predictions = Variable(self.Tensor(game.batch_size, game.num_agents, game.num_agents, self.goal_size))
 
             if self.pre_defined_utterances:
-                utterances = self.create_data_set.generate_sentences(game, t)
+                self.df_utterance = self.create_data_set.generate_sentences(game, t, self.df_utterance)
 
             for agent in range(game.num_agents):
                 physical_feat = self.get_physical_feat(game, agent)
@@ -130,4 +137,24 @@ class AgentModule(nn.Module):
                     'loss': cost})
                 if self.using_utterances and self.pre_defined_utterances:
                     timesteps[-1]['utterances'] = utterances
+
+        input_regex = "agent_color|agent_shape|lm_color|lm_shape"
+        dataset_log = pd.DataFrame(index=range(game.batch_size), columns=range(47))
+        dataset_log.loc[:, 0] = "<input>"
+        dataset_log.loc[:, 1:4] = self.df_utterance[0].filter(regex=input_regex).values
+        dataset_log.loc[:, 5:8] = self.df_utterance[1].filter(regex=input_regex).values
+        dataset_log.loc[:, 9] = "</input>"
+        dataset_log.loc[:, 10] = "<dialog>"
+        for j, i in enumerate(range(0,32,2)):
+            dataset_log.loc[:, 11 + i] = self.df_utterance[0].filter(regex='Full Sentence{0}'.format(j)).values
+            dataset_log.loc[:, 11 + i + 1] = self.df_utterance[1].filter(regex='Full Sentence{0}'.format(j)).values
+        dataset_log.loc[:, 43] = "</dialog>"
+        dataset_log.loc[:, 44] = "<output>"
+        dataset_log.loc[:, 45] = self.df_utterance[0].filter(regex="dist").values
+        dataset_log.loc[:, 46] = self.df_utterance[1].filter(regex="dist").values
+        dataset_log.loc[:, 47] = "</output>"
+        # global folder_dir
+        with open("dataset.csv", 'a', newline='') as f:
+            dataset_log.to_csv(f, mode='a', header=False, index=False)
+
         return self.total_cost, timesteps

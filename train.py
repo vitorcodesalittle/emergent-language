@@ -80,6 +80,7 @@ def print_losses(epoch, losses, dists, game_config, writer):
 
 
 def main():
+    global folder_dir
     folder_dir = create_new_dir()
     writer = SummaryWriter(folder_dir + 'tensorboard' + os.sep)  #Tensorboard - setting where the temp files will be saved
     args = vars(parser.parse_args())

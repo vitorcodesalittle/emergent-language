@@ -1,3 +1,5 @@
+import logging
+
 import torch
 import torch.nn as nn
 from modules.plot import Plot
@@ -113,7 +115,6 @@ class GameModule(nn.Module):
                                  locations.shape[2], self.world_dim, self.num_agents,
                                  goals_by_landmark, self.folder_dir)
         self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
-
     """
     Updates game state given all movements and utterances and returns accrued cost
         - movements: [batch_size, num_agents, config.movement_size]
