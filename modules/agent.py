@@ -101,7 +101,7 @@ class AgentModule(nn.Module):
         movement, utterance, new_mem = self.action_processor(physical_feat, game.observed_goals[:,agent], game.memories["action"][:,agent], self.training, utterance_feat)
         self.update_mem(game, "action", new_mem, agent)
         movements[:,agent,:] = movement
-        if self.using_utterances and self.pre_defined_utterances:
+        if self.using_utterances:
             utterances[:,agent,:] = utterance
 
     def forward(self, game):
@@ -135,7 +135,7 @@ class AgentModule(nn.Module):
                     'locations': game.locations,
                     'movements': movements,
                     'loss': cost})
-                if self.using_utterances and self.pre_defined_utterances:
+                if self.using_utterances:
                     timesteps[-1]['utterances'] = utterances
         if self.pre_defined_utterances:
             input_regex = "agent_color|agent_shape|lm_color|lm_shape"
