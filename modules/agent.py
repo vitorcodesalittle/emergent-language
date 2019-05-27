@@ -22,14 +22,14 @@ import numpy as np
     the end, returning the total cost all agents collected over the entire game
 """
 class AgentModule(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, corpus):
         super(AgentModule, self).__init__()
         self.init_from_config(config)
         self.total_cost = Variable(self.Tensor(1).zero_())
 
         self.physical_processor = ProcessingModule(config.physical_processor)
         self.physical_pooling = nn.AdaptiveMaxPool2d((1,config.feat_vec_size))
-        self.action_processor = ActionModule(config.action_processor)
+        self.action_processor = ActionModule(config.action_processor, corpus)
 
         if self.using_utterances:
             self.utterance_processor = GoalPredictingProcessingModule(config.utterance_processor)

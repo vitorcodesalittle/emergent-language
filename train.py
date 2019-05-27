@@ -5,7 +5,8 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-from modules import plot  # after setting an error TH I can change the wat it is saved
+from modules import plot, \
+    data  # after setting an error TH I can change the wat it is saved
 from modules.agent import AgentModule
 from modules.game import GameModule
 from pathlib import Path
@@ -91,7 +92,8 @@ def main():
     print(training_config)
     print(game_config)
     print(agent_config)
-    agent = AgentModule(agent_config)
+    corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
+    agent = AgentModule(agent_config, corpus)
     if training_config.use_cuda:
         agent.cuda()
     optimizer = RMSprop(agent.parameters(), lr=training_config.learning_rate)
@@ -105,6 +107,8 @@ def main():
         agent.eval()
     else:
         pass
+
+
 
     for epoch in range(training_config.num_epochs):
         num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)

@@ -59,6 +59,7 @@ class PredefinedUtterancesModule:
         sentence = sentence.replace('<agent_shape>', shapes_dict[int(row['agent_shape'])])
         sentence = sentence.replace('<lm_color>', colors_dict[int(row['lm_color'])])
         sentence = sentence.replace('<lm_shape>', shapes_dict[int(row['lm_shape'])])
+        sentence += '<eos>'
         return sentence
 
     @staticmethod
