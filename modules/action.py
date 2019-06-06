@@ -7,7 +7,7 @@ from modules.dialog_model import DialogModel
 from modules.gumbel_softmax import GumbelSoftmax
 from modules.modules_for_lm import Criterion
 from modules.processing import ProcessingModule
-
+from modules.utterance import Utterance
 
 """
     An ActionModule takes in the physical observation feature vector, the
@@ -51,47 +51,27 @@ class ActionModule(nn.Module):
         self.opt = optim.SGD(self.lm_model.parameters(), lr=self.args['lr'],
                              momentum=self.args['momentum'],
                              nesterov=(self.args['nesterov'] and self.args['momentum'] > 0))
+        self.utter = Utterance(config, dataset_dictionary)
 
-    def forward(self, physical, goal, mem, training, utterance=None):
+    def processed_data(self, physical, goal, mem, utterance_feat=None):
         goal_processed, _ = self.goal_processor(goal, mem)
         if self.using_utterances:
-            x = torch.cat([physical.squeeze(1), utterance.squeeze(1), goal_processed], 1).squeeze(1)
+            x = torch.cat(
+                [physical.squeeze(1), utterance_feat.squeeze(1), goal_processed],
+                1).squeeze(1)
         else:
             x = torch.cat([physical.squeeze(0), goal_processed], 1).squeeze(1)
         processed, mem = self.processor(x, mem)
+        return processed, mem
+
+    def forward(self, physical, goal, mem, training, utterance_feat=None):
+
+        processed, mem = self.processed_data(physical, goal, mem, utterance_feat)
         movement = self.movement_chooser(processed)
+
         if self.using_utterances:
-            # utter = self.utterance_chooser(processed) ##OLD CODE
-            # perform forward for the language model
-            utter = ["Red","agent","go","to","green","landmark","<eos>",""] #TODO: do not hard code sentance, rather generate it using the logic we wrote and pad
-            encoded_utter = self.dataset_dictionary.word_dict.w2i(utter)
-            inpt = [encoded_utter] * 512
-            inpt = Variable(torch.LongTensor(inpt))
-            inpt = inpt.transpose(0,1)
-            # create initial hidden state for the language rnn
-            lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.args['nhid_lang'])
-            out, lang_h = self.lm_model.forward_lm(inpt, lang_h, processed.unsqueeze(0))
-
-            tgt = Variable(torch.LongTensor(encoded_utter * 512))
-            loss = self.crit(out.view(-1, len(self.dataset_dictionary.word_dict)), tgt)
-            self.opt.zero_grad()
-            # backward step with gradient clipping
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.lm_model.parameters(),
-                                           self.args['clip'])
-            self.opt.step()
-
-            #TODO: we stopped here
-            if training:
-                utterance = self.gumbel_softmax(utter)
-            else:
-                utterance = torch.zeros(utter.size())
-                if self.using_cuda:
-                    utterance = utterance.cuda()
-                max_utter = utter.max(1)[1]
-                max_utter = max_utter.data[0]
-                utterance[0, max_utter] = 1
+            total_loss, utter = self.utter(processed, "fine tune")
         else:
-            utterance = None
+            utter = None
         final_movement = (movement * 2 * self.movement_step_size) - self.movement_step_size
-        return final_movement, utterance, mem
+        return final_movement, utter, mem
