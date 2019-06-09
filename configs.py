@@ -1,6 +1,10 @@
 from typing import NamedTuple, Any
 
+import os
+from pathlib import Path
+import time
 import constants
+from modules import data
 
 DEFAULT_BATCH_SIZE = 512
 DEFAULT_NUM_EPOCHS = 1000
@@ -17,6 +21,7 @@ USE_UTTERANCES = False
 PENALIZE_WORDS = True
 DEFAULT_VOCAB_SIZE = 10
 DEFAULT_OOV_PROB = 1
+DEFAULT_DF_UTTERANCE_COL_NAME = ['agent_color', 'agent_shape', 'lm_color', 'lm_shape', 'sentence']
 
 DEFAULT_WORLD_DIM = 16
 MAX_AGENTS = 2 #TODO: add to readme
@@ -25,6 +30,16 @@ MIN_AGENTS = 2
 MIN_LANDMARKS = 3
 NUM_COLORS = 3
 NUM_SHAPES = 2
+
+DEFAULT_UPLOAD_TRAINED_MODEL = False
+DEFAULT_DIR_UPLOAD_MODEL = ""
+DEFAULT_SAVE_TO_A_NEW_DIR = False
+DEFAULT_CREATING_DATASET_MODE = True
+DEFAULT_FOLDER_DIR = str(Path(os.getcwd())) + os.sep + 'debag' + os.sep
+DEFAULT_CORPUS = None
+DEFAULT_USE_OLD_UTTERANCE_CODE = False
+
+
 
 TrainingConfig = NamedTuple('TrainingConfig', [
     ('num_epochs', int),
@@ -35,7 +50,6 @@ TrainingConfig = NamedTuple('TrainingConfig', [
     ('save_model_file', str),
     ('use_cuda', bool),
     ('no_utterances', bool),
-    ('pre_defined_utterances', bool)
 ])
 
 GameConfig = NamedTuple('GameConfig', [
@@ -99,7 +113,17 @@ AgentModuleConfig = NamedTuple("AgentModuleConfig", [
     ('use_utterances', bool),
     ('penalize_words', bool),
     ('use_cuda', bool),
-    ('pre_defined_utterances', bool)
+    ('df_utterance_col_name', list)
+    ])
+
+RunModuleConfig = NamedTuple("RunModuleConfig", [
+    ('save_to_a_new_dir', bool),
+    ('creating_data_set_mode', bool),
+    ('upload_trained_model', bool),
+    ('dir_upload_model', str),
+    ('folder_dir', str),
+    ('corpus', str),
+    ('create_utterance_using_old_code',bool),
     ])
 
 default_training_config = TrainingConfig(
@@ -110,9 +134,7 @@ default_training_config = TrainingConfig(
         save_model=SAVE_MODEL,
         save_model_file=DEFAULT_MODEL_FILE,
         use_cuda=False,
-        no_utterances=False,
-        pre_defined_utterances=False
- )
+        no_utterances=False)
 
 default_word_counter_config = WordCountingModuleConfig(
         vocab_size=DEFAULT_VOCAB_SIZE,
@@ -134,6 +156,16 @@ default_game_config = GameConfig(
     False,
     DEFAULT_TIME_HORIZON,
     DEFAULT_NUM_EPOCHS,)
+
+default_run_config = RunModuleConfig(
+    save_to_a_new_dir=DEFAULT_SAVE_TO_A_NEW_DIR,
+    creating_data_set_mode=DEFAULT_CREATING_DATASET_MODE,
+    upload_trained_model=DEFAULT_UPLOAD_TRAINED_MODEL,
+    dir_upload_model=DEFAULT_DIR_UPLOAD_MODEL,
+    folder_dir=DEFAULT_FOLDER_DIR,
+    corpus=DEFAULT_CORPUS,
+    create_utterance_using_old_code=DEFAULT_USE_OLD_UTTERANCE_CODE,)
+
 
 if USE_UTTERANCES:
     feat_size = DEFAULT_FEAT_VEC_SIZE*3
@@ -176,7 +208,7 @@ default_agent_config = AgentModuleConfig(
         use_utterances=USE_UTTERANCES,
         penalize_words=PENALIZE_WORDS,
         use_cuda=False,
-        pre_defined_utterances=False)
+        df_utterance_col_name = DEFAULT_DF_UTTERANCE_COL_NAME)
 
 def get_training_config(kwargs,folder_dir):
     return TrainingConfig(
@@ -187,8 +219,7 @@ def get_training_config(kwargs,folder_dir):
             save_model=default_training_config.save_model,
             save_model_file= folder_dir + (kwargs['save_model_weights'] or default_training_config.save_model_file),
             use_cuda=kwargs['use_cuda'],
-            no_utterances=kwargs['no_utterances'],
-            pre_defined_utterances=kwargs['pre_defined_utterances'])
+            no_utterances=kwargs['no_utterances'],)
 
 def get_game_config(kwargs):
     return GameConfig(
@@ -252,6 +283,57 @@ def get_agent_config(kwargs):
             use_utterances=use_utterances,
             penalize_words=penalize_words,
             use_cuda=use_cuda,
-            pre_defined_utterances=kwargs['pre_defined_utterances']
+            df_utterance_col_name=default_agent_config.df_utterance_col_name
             )
 
+def get_run_config(kwargs):
+    save_to_a_new_dir = kwargs['save_to_a_new_dir'] or default_run_config.save_to_a_new_dir
+    creating_data_set_mode = kwargs['creating_data_set_mode'] or default_run_config.creating_data_set_mode
+    upload_trained_model = kwargs['upload_trained_model'] or default_run_config.upload_trained_model
+    if save_to_a_new_dir:
+        folder_dir = create_new_dir()
+    else:
+        folder_dir = default_run_config.folder_dir
+    if creating_data_set_mode:
+        # corpus = None
+        corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
+
+    else:
+        corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
+    if upload_trained_model:
+        dir_upload_model = kwargs['dir_upload_model'] or DEFAULT_DIR_UPLOAD_MODEL
+        dir_upload_model = dir_upload_model + os.sep + DEFAULT_MODEL_FILE
+    else:
+        dir_upload_model = DEFAULT_DIR_UPLOAD_MODEL
+    return RunModuleConfig(
+        save_to_a_new_dir=save_to_a_new_dir,
+        creating_data_set_mode=creating_data_set_mode,
+        upload_trained_model=upload_trained_model,
+        dir_upload_model= dir_upload_model,
+        folder_dir=folder_dir,
+        corpus=corpus,
+        create_utterance_using_old_code=kwargs['create_utterance_using_old_code'] or default_run_config.create_utterance_using_old_code
+          )
+
+def create_new_dir():
+    """
+       Create the new folder for the experiment and in it designated folders for the plots, movies and the tensorboard files.
+       return: Full path of the new folder (str), and only the folder name
+    """
+    folder_dir = str(Path(os.getcwd())) + os.sep + str(time.strftime("%H%M-%d%m%Y")) + os.sep
+    folder_name_suffix = 0
+    while True:
+        if not os.path.exists(folder_dir):
+            os.makedirs(folder_dir + os.sep) #open the folder
+            break
+        else:
+            folder_name_suffix += 1 # add an index to the folder so we will not overwrite the previous folder
+            folder_dir = folder_dir + "_" + str(folder_name_suffix)
+    plots_dir = folder_dir + 'plots' + os.sep
+    movies_dir = folder_dir + 'movies' + os.sep
+    tensorboard_dir = folder_dir + 'tensorboard' + os.sep
+    os.makedirs(movies_dir)
+    os.makedirs(tensorboard_dir)
+    os.makedirs(plots_dir)
+
+    return folder_dir

@@ -1,15 +1,12 @@
 import argparse
 import os
-import time
 from collections import defaultdict
 
 import numpy as np
 import torch
-from modules import plot, \
-    data  # after setting an error TH I can change the wat it is saved
+from modules import plot
 from modules.agent import AgentModule
 from modules.game import GameModule
-from pathlib import Path
 from tensorboardX import SummaryWriter  # the tensorboardX is installed in the anaconda console
 from torch.optim import RMSprop
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -19,7 +16,6 @@ import create_plots  # for the file dir function
 
 parser = argparse.ArgumentParser(description="Trains the agents for cooperative communication task")
 parser.add_argument('--no-utterances', action='store_true', help='if specified disables the communications channel (default enabled)')
-parser.add_argument('--pre_defined_utterances', default=False, action='store_true', help='if specified dont train utterenece')
 parser.add_argument('--penalize-words', action='store_true', help='if specified penalizes uncommon word usage (default disabled)')
 parser.add_argument('--n-epochs', '-e', type=int, help='if specified sets number of training epochs (default 5000)')
 parser.add_argument('--learning-rate', type=float, help='if specified sets learning rate (default 1e-3)')
@@ -30,41 +26,18 @@ parser.add_argument('--num-colors', '-c', type=int, help='if specified sets numb
 parser.add_argument('--max-agents', type=int, help='if specified sets maximum number of agents in each episode (default 3)')
 parser.add_argument('--min-agents', type=int, help='if specified sets minimum number of agents in each episode (default 1)')
 parser.add_argument('--max-landmarks', type=int, help='if specified sets maximum number of landmarks in each episode (default 3)')
-parser.add_argument('--min-landmarks', type=int, help='if specified sets minimum number of landmarks in each episode (default 1)')
+parser.add_argument('--min-landmarks', type=int, help='if specified sets minimum number of landmarks in each episode (default save1)')
 parser.add_argument('--vocab-size', '-v', type=int, help='if specified sets maximum vocab size in each episode (default 6)')
 parser.add_argument('--world-dim', '-w', type=int, help='if specified sets the side length of the square grid where all agents and landmarks spawn(default 16)')
 parser.add_argument('--oov-prob', '-o', type=int, help='higher value penalize uncommon words less when penalizing words (default 6)')
 parser.add_argument('--load-model-weights', type=str, help='if specified start with saved model weights saved at file given by this argument')
 parser.add_argument('--save-model-weights', type=str, help='if specified save the model weights at file given by this argument')
 parser.add_argument('--use-cuda', action='store_true', default=False, help='if specified enables training on CUDA (default disabled)')
-parser.add_argument('--upload-trained-model', default=False, help='if specified the trained model weights will be uploaded and the network will continue the run with then')
-parser.add_argument('--dir-upload-model', required=False, type=str, default= create_plots.get_newest_dir() , help='Directory to folder containing the trained model')
-
-
-
-def create_new_dir():
-    """
-       Create the new folder for the experiment and in it designated folders for the plots, movies and the tensorboard files.
-       return: Full path of the new folder (str), and only the folder name
-    """
-    folder_dir = str(Path(os.getcwd())) + os.sep + str(time.strftime("%H%M-%d%m%Y")) + os.sep
-    folder_name_suffix = 0
-    while True:
-        if not os.path.exists(folder_dir):
-            os.makedirs(folder_dir + os.sep) #open the folder
-            break
-        else:
-            folder_name_suffix += 1 # add an index to the folder so we will not overwrite the previous folder
-            folder_dir = folder_dir + "_" + str(folder_name_suffix)
-    plots_dir = folder_dir + 'plots' + os.sep
-    movies_dir = folder_dir + 'movies' + os.sep
-    tensorboard_dir = folder_dir + 'tensorboard' + os.sep
-    os.makedirs(movies_dir)
-    os.makedirs(tensorboard_dir)
-    os.makedirs(plots_dir)
-
-    return folder_dir
-
+parser.add_argument('--upload-trained-model', help='if specified the trained model weights will be uploaded and the network will continue the run with then')
+parser.add_argument('--dir-upload-model', required=False, type=str, help='Directory to folder containing the trained model')
+parser.add_argument('--save-to-a-new-dir', required=False, type=bool, help='define if we want to save the info in a new dir or are we in debag mode and all of the data weill be moved to debag folder')
+parser.add_argument('--creating-data-set-mode', required=False, type=bool, help='define if we are in create dataset mode or not')
+parser.add_argument('--create-utterance-using-old-code', type=bool, help='use when we want to create dataset, or create the trained model that the dataset code willuse ')
 
 def print_losses(epoch, losses, dists, game_config, writer):
     for a in range(game_config.min_agents, game_config.max_agents + 1):
@@ -81,40 +54,35 @@ def print_losses(epoch, losses, dists, game_config, writer):
 
 
 def main():
-    global folder_dir
-    folder_dir = create_new_dir()
-    writer = SummaryWriter(folder_dir + 'tensorboard' + os.sep)  #Tensorboard - setting where the temp files will be saved
     args = vars(parser.parse_args())
+    run_config = configs.get_run_config(args)
     agent_config = configs.get_agent_config(args)
     game_config = configs.get_game_config(args)
-    training_config = configs.get_training_config(args,folder_dir)
+    training_config = configs.get_training_config(args,run_config.folder_dir)
     print("Training with config:")
     print(training_config)
     print(game_config)
     print(agent_config)
-    corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
-    agent = AgentModule(agent_config, corpus)
+    print(run_config)
+    writer = SummaryWriter(run_config.folder_dir + 'tensorboard' + os.sep)  #Tensorboard - setting where the temp files will be saved
+    agent = AgentModule(agent_config, run_config.corpus, run_config.creating_data_set_mode, run_config.create_utterance_using_old_code)
+    if run_config.upload_trained_model:
+        folder_dir_trained_model = run_config.dir_upload_model
+        agent.load_state_dict(torch.load(folder_dir_trained_model))
+        agent.eval()
+    else:
+        pass
     if training_config.use_cuda:
         agent.cuda()
     optimizer = RMSprop(agent.parameters(), lr=training_config.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True, cooldown=5)
     losses = defaultdict(lambda:defaultdict(list))
     dists = defaultdict(lambda:defaultdict(list))
-
-    if args['upload_trained_model'] == True:
-        folder_dir = args['dir_upload_model'] + os.sep + training_config.save_model_file
-        agent.load_state_dict(torch.load(folder_dir))
-        agent.eval()
-    else:
-        pass
-
-
-
     for epoch in range(training_config.num_epochs):
         num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)
         num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks+1)
         agent.reset()
-        game = GameModule(game_config, num_agents, num_landmarks, folder_dir)
+        game = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
         if training_config.use_cuda:
             game.cuda()
         optimizer.zero_grad()
@@ -124,7 +92,7 @@ def main():
         losses[num_agents][num_landmarks].append(per_agent_loss)
 
         dist, dist_per_agent = game.get_avg_agent_to_goal_distance() #add to tensorboard
-        dist_per_agent_file_name = folder_dir + 'dist_from_goal.h5'
+        dist_per_agent_file_name = run_config.folder_dir + 'dist_from_goal.h5'
         if os.path.isfile(dist_per_agent_file_name):
             plot.save_dataset(dist_per_agent_file_name, 'dist_from_goal', dist_per_agent.detach().numpy(), 'a')
         else:

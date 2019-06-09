@@ -23,15 +23,12 @@ import numpy as np
 SPECIAL = [
     '<eos>',
     '<unk>',
-    '<selection>',
     '<pad>',
 ]
 
 # tokens that stops either a sentence or a conversation
 STOP_TOKENS = [
-    '<eos>',
-    '<selection>',
-]
+    '<eos>']
 
 
 def get_tag(tokens, tag):

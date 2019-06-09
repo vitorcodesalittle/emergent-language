@@ -94,7 +94,7 @@ class GameModule(nn.Module):
                 self.memories["utterance"] = Variable(torch.zeros(self.batch_size, self.num_agents, self.num_agents, config.memory_size))
 
         agent_baselines = self.locations[:, :self.num_agents, :]
-        goals_by_landmark = torch.cat((self.goal_entities.type(torch.FloatTensor), goal_agents), 2).float()
+        self.goals_by_landmark = torch.cat((self.goal_entities.type(torch.FloatTensor), goal_agents), 2).float()
 
         sort_idxs = torch.sort(self.goals[:,:,2])[1]
         self.sorted_goals = Variable(self.Tensor(self.goals.size()))
@@ -113,7 +113,7 @@ class GameModule(nn.Module):
 
         self.plots_matrix = Plot(self.batch_size,self.time_horizon, self.num_entities,
                                  locations.shape[2], self.world_dim, self.num_agents,
-                                 goals_by_landmark, self.folder_dir)
+                                 self.goals_by_landmark, self.folder_dir)
         self.plots_matrix.save_plot_matrix("start", locations, self.colors, self.shapes)
     """
     Updates game state given all movements and utterances and returns accrued cost
@@ -134,7 +134,6 @@ class GameModule(nn.Module):
         if self.using_utterances:
             self.utterances = utterances
             self.plots_matrix.save_utterance_matrix(utterances, t) ####
-
             return self.compute_cost(movements, goal_predictions, utterances)
         else:
             return self.compute_cost(movements, goal_predictions)

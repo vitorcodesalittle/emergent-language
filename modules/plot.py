@@ -153,6 +153,7 @@ class Plot:
                           fancybox=True, shadow=True, ncol=2, prop={'size': 10})
                 plt.title(title)
                 plt.savefig('plots' + os.sep + 'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
+                plt.close()
             # bar.update(batch + 1)
             # sleep(0.1)
         # bar.finish()

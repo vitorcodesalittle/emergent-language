@@ -2,11 +2,8 @@ import os
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from modules.predefined_utterances_module import PredefinedUtterancesModule
-from modules.processing import ProcessingModule
-from modules.goal_predicting import GoalPredictingProcessingModule
 from modules.action import ActionModule
 from modules.goal_predicting import GoalPredictingProcessingModule
 from modules.processing import ProcessingModule
@@ -22,28 +19,27 @@ import numpy as np
     the end, returning the total cost all agents collected over the entire game
 """
 class AgentModule(nn.Module):
-    def __init__(self, config, corpus):
+    def __init__(self, config, corpus, dataset_mode, use_old_utterance_code):
         super(AgentModule, self).__init__()
+        self.use_old_utterance_code = use_old_utterance_code
         self.init_from_config(config)
         self.total_cost = Variable(self.Tensor(1).zero_())
-
+        self.create_data_set_mode = dataset_mode
         self.physical_processor = ProcessingModule(config.physical_processor)
         self.physical_pooling = nn.AdaptiveMaxPool2d((1,config.feat_vec_size))
-        self.action_processor = ActionModule(config.action_processor, corpus)
+        self.action_processor = ActionModule(config.action_processor, corpus,use_old_utterance_code,)
 
         if self.using_utterances:
             self.utterance_processor = GoalPredictingProcessingModule(config.utterance_processor)
             self.utterance_pooling = nn.AdaptiveMaxPool2d((1,config.feat_vec_size))
             if self.penalizing_words:
                 self.word_counter = WordCountingModule(config.word_counter)
-        if self.pre_defined_utterances:
-            # self.utterance_processor = PredefinedUtterancesModule() #TODO can't assign a network here.
+        if self.create_data_set_mode:
             self.create_data_set = PredefinedUtterancesModule()
 
     def init_from_config(self, config):
         self.training = True
         self.using_utterances = config.use_utterances
-        self.pre_defined_utterances = config.pre_defined_utterances
         self.penalizing_words = config.penalize_words
         self.using_cuda = config.use_cuda
         self.time_horizon = config.time_horizon
@@ -52,6 +48,7 @@ class AgentModule(nn.Module):
         self.goal_size = config.goal_size
         self.processing_hidden_size = config.physical_processor.hidden_size
         self.Tensor = torch.cuda.FloatTensor if self.using_cuda else torch.FloatTensor
+        self.df_utterance_col_name = config.df_utterance_col_name
 
     def reset(self):
         self.total_cost = torch.zeros_like(self.total_cost)
@@ -94,11 +91,14 @@ class AgentModule(nn.Module):
             for other_agent in range(game.num_agents):
                 self.process_utterances(game, agent, other_agent, utterance_processes, goal_predictions)
             return self.utterance_pooling(utterance_processes)
-        else: #TODO: what should we do for pre_defined_utterances?
+        else:
             return None
 
-    def get_action(self, game, agent, physical_feat, utterance_feat, movements, utterances):
-        movement, utterance, new_mem = self.action_processor(physical_feat, game.observed_goals[:,agent], game.memories["action"][:,agent], self.training, utterance_feat)
+    def get_action(self, game, agent, physical_feat, utterance_feat, movements, full_sentence, utterances):
+        movement, utterance, new_mem = self.action_processor(physical_feat, game.observed_goals[:,agent],
+                                                             game.memories["action"][:,agent], self.training,
+                                                             self.use_old_utterance_code, full_sentence,
+                                                             utterance_feat)
         self.update_mem(game, "action", new_mem, agent)
         movements[:,agent,:] = movement
         if self.using_utterances:
@@ -106,9 +106,9 @@ class AgentModule(nn.Module):
 
     def forward(self, game):
         timesteps = []
-        col_name = ['agent_color', 'agent_shape', 'lm_color', 'lm_shape', 'sentence']
-        self.df_utterance = [pd.DataFrame(index=range(512), columns=col_name, dtype=np.int64) for i in range(game.num_agents)]
-
+        if self.create_data_set_mode:
+            self.df_utterance = [pd.DataFrame(index=range(game.batch_size), columns=self.df_utterance_col_name
+                                              , dtype=np.int64) for i in range(game.num_agents)]
         for t in range(self.time_horizon):
             movements = Variable(self.Tensor(game.batch_size, game.num_entities, self.movement_dim_size).zero_())
             utterances = None
@@ -117,13 +117,15 @@ class AgentModule(nn.Module):
                 utterances = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
                 goal_predictions = Variable(self.Tensor(game.batch_size, game.num_agents, game.num_agents, self.goal_size))
 
-            if self.pre_defined_utterances:
+            if self.create_data_set_mode:
                 self.df_utterance = self.create_data_set.generate_sentences(game, t, self.df_utterance)
 
             for agent in range(game.num_agents):
                 physical_feat = self.get_physical_feat(game, agent)
                 utterance_feat = self.get_utterance_feat(game, agent, goal_predictions)
-                self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances)
+                self.get_action(game, agent, physical_feat, utterance_feat, movements,
+                                self.df_utterance[agent]['Full Sentence' + str(t)]
+                                , utterances)
 
             cost = game(movements, goal_predictions, utterances, t)
             if self.penalizing_words:
@@ -137,24 +139,8 @@ class AgentModule(nn.Module):
                     'loss': cost})
                 if self.using_utterances:
                     timesteps[-1]['utterances'] = utterances
-        if self.pre_defined_utterances:
-            input_regex = "agent_color|agent_shape|lm_color|lm_shape"
-            dataset_log = pd.DataFrame(index=range(game.batch_size), columns=range(47))
-            dataset_log.loc[:, 0] = "<input>"
-            dataset_log.loc[:, 1:4] = self.df_utterance[0].filter(regex=input_regex).values
-            dataset_log.loc[:, 5:8] = self.df_utterance[1].filter(regex=input_regex).values
-            dataset_log.loc[:, 9] = "</input>"
-            dataset_log.loc[:, 10] = "<dialog>"
-            for j, i in enumerate(range(0,32,2)):
-                dataset_log.loc[:, 11 + i] = self.df_utterance[0].filter(regex='Full Sentence{0}'.format(j)).values
-                dataset_log.loc[:, 11 + i + 1] = self.df_utterance[1].filter(regex='Full Sentence{0}'.format(j)).values
-            dataset_log.loc[:, 43] = "</dialog>"
-            dataset_log.loc[:, 44] = "<output>"
-            dataset_log.loc[:, 45] = self.df_utterance[0].filter(regex="dist").values
-            dataset_log.loc[:, 46] = self.df_utterance[1].filter(regex="dist").values
-            dataset_log.loc[:, 47] = "</output>"
-            # global folder_dir
-            with open("dataset.csv", 'a', newline='') as f:
-                dataset_log.to_csv(f, mode='a', header=False, index=False)
+
+        if self.create_data_set_mode:
+            self.create_data_set.generate_dataset_txt_file(game.batch_size, self.df_utterance, self.df_utterance_col_name)
 
         return self.total_cost, timesteps
