@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
+from modules import data
+
 dict_colors = {'[0.]': 'red', '[1.]': 'green', '[2.]': 'blue'}
 dict_shapes = {'[0.]': 'o', '[1.]': 'v'}
 epoch = -1
@@ -55,7 +57,7 @@ class Plot:
         self.sentence_file_name = folder_dir + 'sentence.h5'
         self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
 
-    def save_utterance_matrix(self,utterance, iteration):
+    def save_utterance_matrix(self, utterance, iteration):
         if iteration == 0:
             self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, utterance.shape[2]))
         elif iteration < self.total_iteration - 2:
@@ -76,7 +78,6 @@ class Plot:
             save_dataset(self.goals_by_landmark_file_name, 'goals', self.goals_by_landmark, mode)
         elif utterance is not None:
             save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, mode)
-
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
@@ -113,13 +114,9 @@ class Plot:
                     print(err)
 
     @staticmethod
-    def create_plots(epoch, batch_size):
+    def create_plots(epoch, batch_size, dataset_dictionary):
         locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch)
-        text_label = Plot.creating_dot_label(locations.shape[2], num_agents)  #locations.shape[1] = num of entitels
-        #opening a status bar
-        # bar = progressbar.ProgressBar(maxval=batch_size, \
-        #                               widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-        # bar.start()
+        text_label = Plot.creating_dot_label(locations.shape[2], num_agents)
         #creating the plots
         total_iterations = locations.shape[1]
         for batch in range(batch_size):
@@ -135,7 +132,7 @@ class Plot:
                 plt.axis([0, 16, 0, 16])
                 locations_y = locations[batch, iteration, :, 1]
                 locations_x = locations[batch, iteration, :, 0]
-                utterance_legand = Plot.utterance_with_threshold(utterance[batch, iteration, :, :])
+                utterance_legand = Plot.decoded_utterance(utterance[batch, iteration, :, :], dataset_dictionary)
                 for obj in range(len(locations_y)):
                     if obj < num_agents:
                         ax.scatter(locations_x[obj], locations_y[obj], color = colors_plot[obj], marker = marker[obj],
@@ -154,9 +151,6 @@ class Plot:
                 plt.title(title)
                 plt.savefig('plots' + os.sep + 'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
                 plt.close()
-            # bar.update(batch + 1)
-            # sleep(0.1)
-        # bar.finish()
 
     @staticmethod
     def extract_data(epoch, dir=None, calculate_utternace=None,calculate_dist=None):
@@ -172,9 +166,6 @@ class Plot:
         elif calculate_dist is not None:
             return open_dataset(os.getcwd() + os.sep + 'dist_from_goal.h5', epoch)
 
-
-
-
     @staticmethod
     def creating_dot_label(entitle, num_agents):
         text_label = [None] * entitle
@@ -189,7 +180,11 @@ class Plot:
         return utterance
 
     @staticmethod
-    def create_sucees_reate_plot (sucess_rate_per_epoch, sucess_rate_per_epoch_std, epoch_range):
+    def decoded_utterance(utterance, dataset_dictionary):
+        return [dataset_dictionary.word_dict.i2w(word) for word in utterance]
+
+    @staticmethod
+    def create_sucees_reate_plot(sucess_rate_per_epoch, sucess_rate_per_epoch_std, epoch_range):
         epoch_num = [str(x) for x in epoch_range]
         plt.figure(figsize=(20, 3))
         sucess_rate_per_epoch_std = [round(sucess_rate_per_epoch_std[x].item(),2) for x in range(len(sucess_rate_per_epoch_std))]

@@ -2,6 +2,7 @@ import argparse
 import os
 import re
 from Statistics import Statistics
+from modules import data
 from modules.plot import Plot
 from pathlib import Path
 
@@ -25,11 +26,12 @@ def main(args):
     batch_size = args.batch_size
     epoch_range = args.epoch_range
     batch_range = args.batch_range
+    dataset_dictionary = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
     if not os.path.isabs(dir):
          dir = str(Path(os.getcwd())) + os.sep + dir + os.sep
     os.chdir(dir)
     for epoch in epoch_range:
-        Plot.create_plots(epoch, batch_size)
+        Plot.create_plots(epoch, batch_size, dataset_dictionary)
     # Plot.create_video(batch_range, epoch_num, dir) #fix
     stats = Statistics(dir)
     stats.calculate(epoch_range, batch_range)

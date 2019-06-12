@@ -77,8 +77,8 @@ def main():
         agent.cuda()
     optimizer = RMSprop(agent.parameters(), lr=training_config.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True, cooldown=5)
-    losses = defaultdict(lambda:defaultdict(list))
-    dists = defaultdict(lambda:defaultdict(list))
+    losses = defaultdict(lambda: defaultdict(list))
+    dists = defaultdict(lambda: defaultdict(list))
     for epoch in range(training_config.num_epochs):
         num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)
         num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks+1)
