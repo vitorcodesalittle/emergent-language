@@ -27,7 +27,7 @@ from modules import modules_for_lm
 
 
 class DialogModel(modules_for_lm.CudaModule):
-    def __init__(self, word_dict, item_dict, context_dict, output_length, args, device_id):
+    def __init__(self, word_dict, item_dict, context_dict, output_length, config, device_id):
         super(DialogModel, self).__init__(device_id)
 
         # domain = get_domain(args.domain)
@@ -35,27 +35,27 @@ class DialogModel(modules_for_lm.CudaModule):
         self.word_dict = word_dict
         # self.item_dict = item_dict
         # self.context_dict = context_dict
-        self.args = args
+        self.config = config
 
         # embedding for words
-        self.word_encoder = nn.Embedding(len(self.word_dict), args['nembed_word'])
+        self.word_encoder = nn.Embedding(len(self.word_dict), config.nembed_word)
 
         # # context encoder
         # ctx_encoder_ty = modules_for_lm.RnnContextEncoder if args.rnn_ctx_encoder \
         #     else modules_for_lm.MlpContextEncoder
         # self.ctx_encoder = ctx_encoder_ty(len(self.context_dict), 3,
-        #     args.nembed_ctx, args.nhid_ctx, args['init_range'], device_id)
+        #     args.nembed_ctx, args.nhid_ctx, config.init_range, device_id)
 
         # a reader RNN, to encode words
         self.reader = nn.GRU(
-            input_size=args['nhid_ctx'] + args['nembed_word'],
-            hidden_size=args['nhid_lang'],
+            input_size=config.nhid_ctx + config.nembed_word,
+            hidden_size=config.nhid_lang,
             bias=True)
-        self.decoder = nn.Linear(args['nhid_lang'], args['nembed_word'])
+        self.decoder = nn.Linear(config.nhid_lang, config.nembed_word)
         # a writer, a RNNCell that will be used to generate utterances
         self.writer = nn.GRUCell(
-            input_size=args['nhid_ctx'] + args['nembed_word'],
-            hidden_size=args['nhid_lang'],
+            input_size=config.nhid_ctx + config.nembed_word,
+            hidden_size=config.nhid_lang,
             bias=True)
 
         # tie the weights of reader and writer
@@ -64,13 +64,13 @@ class DialogModel(modules_for_lm.CudaModule):
         self.writer.bias_ih = self.reader.bias_ih_l0
         self.writer.bias_hh = self.reader.bias_hh_l0
 
-        self.dropout = nn.Dropout(args['dropout'])
+        self.dropout = nn.Dropout(config.dropout)
 
         # a bidirectional selection RNN
         # it will go through input words and generate by the reader hidden states
         # to produce a hidden representation
         # self.sel_rnn = nn.GRU(
-        #     input_size=args['nhid_lang'] + args['nembed_word'],
+        #     input_size=config.nhid_lang + config.nembed_word,
         #     hidden_size=args.nhid_attn,
         #     bias=True,
         #     bidirectional=True)
@@ -112,7 +112,7 @@ class DialogModel(modules_for_lm.CudaModule):
 
     def zero_hid(self, bsz, nhid=None, copies=None):
         """A helper function to create an zero hidden state."""
-        nhid = self.args['nhid_lang'] if nhid is None else nhid
+        nhid = self.config.nhid_lang if nhid is None else nhid
         copies = 1 if copies is None else copies
         hid = torch.zeros(copies, bsz, nhid)
         hid = self.to_device(hid)
@@ -120,16 +120,16 @@ class DialogModel(modules_for_lm.CudaModule):
 
     def init_weights(self):
         """Initializes params uniformly."""
-        self.decoder.weight.data.uniform_(-self.args['init_range'], self.args['init_range'])
+        self.decoder.weight.data.uniform_(-self.config.init_range, self.config.init_range)
         self.decoder.bias.data.fill_(0)
 
-        modules_for_lm.init_rnn(self.reader, self.args['init_range'])
+        modules_for_lm.init_rnn(self.reader, self.config.init_range)
 
-        self.word_encoder.weight.data.uniform_(-self.args['init_range'], self.args['init_range'])
+        self.word_encoder.weight.data.uniform_(-self.config.init_range, self.config.init_range)
 
-        # modules_for_lm.init_cont(self.attn, self.args['init_range'])
-        # modules_for_lm.init_cont(self.sel_encoder, self.args['init_range'])
-        # modules_for_lm.init_cont(self.sel_decoders, self.args['init_range'])
+        # modules_for_lm.init_cont(self.attn, self.config.init_range)
+        # modules_for_lm.init_cont(self.sel_encoder, self.config.init_range)
+        # modules_for_lm.init_cont(self.sel_decoders, self.config.init_range)
 
     def read(self, inpt, lang_h, ctx_h, prefix_token="THEM:"):
         """Reads a given utterance."""

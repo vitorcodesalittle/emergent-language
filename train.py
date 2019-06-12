@@ -59,13 +59,14 @@ def main():
     agent_config = configs.get_agent_config(args)
     game_config = configs.get_game_config(args)
     training_config = configs.get_training_config(args,run_config.folder_dir)
+    utterance_config = configs.get_utterance_config()
     print("Training with config:")
     print(training_config)
     print(game_config)
     print(agent_config)
     print(run_config)
     writer = SummaryWriter(run_config.folder_dir + 'tensorboard' + os.sep)  #Tensorboard - setting where the temp files will be saved
-    agent = AgentModule(agent_config, run_config.corpus, run_config.creating_data_set_mode, run_config.create_utterance_using_old_code)
+    agent = AgentModule(agent_config, utterance_config, run_config.corpus, run_config.creating_data_set_mode, run_config.create_utterance_using_old_code)
     if run_config.upload_trained_model:
         folder_dir_trained_model = run_config.dir_upload_model
         agent.load_state_dict(torch.load(folder_dir_trained_model))

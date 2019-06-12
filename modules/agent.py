@@ -19,7 +19,7 @@ import numpy as np
     the end, returning the total cost all agents collected over the entire game
 """
 class AgentModule(nn.Module):
-    def __init__(self, config, corpus, dataset_mode, use_old_utterance_code):
+    def __init__(self, config, utterance_config, corpus, dataset_mode, use_old_utterance_code):
         super(AgentModule, self).__init__()
         self.use_old_utterance_code = use_old_utterance_code
         self.init_from_config(config)
@@ -27,7 +27,7 @@ class AgentModule(nn.Module):
         self.create_data_set_mode = dataset_mode
         self.physical_processor = ProcessingModule(config.physical_processor)
         self.physical_pooling = nn.AdaptiveMaxPool2d((1,config.feat_vec_size))
-        self.action_processor = ActionModule(config.action_processor, corpus,use_old_utterance_code,)
+        self.action_processor = ActionModule(config.action_processor, utterance_config, corpus,use_old_utterance_code,)
 
         if self.using_utterances:
             self.utterance_processor = GoalPredictingProcessingModule(config.utterance_processor)

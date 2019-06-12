@@ -18,7 +18,7 @@ from modules.utterance import Utterance
     utterance and movement actions
 """
 class ActionModule(nn.Module):
-    def __init__(self, config, dataset_dictionary,use_old_utterance_code):
+    def __init__(self, config, utterance_config, dataset_dictionary,use_old_utterance_code):
         super(ActionModule, self).__init__()
         self.using_utterances = config.use_utterances
         self.using_cuda = config.use_cuda
@@ -31,7 +31,7 @@ class ActionModule(nn.Module):
                 nn.Linear(config.action_processor.hidden_size, config.movement_dim_size),
                 nn.Tanh())
         if self.using_utterances:
-            self.utter = Utterance(config, dataset_dictionary,use_old_utterance_code)
+            self.utter = Utterance(config, utterance_config, dataset_dictionary,use_old_utterance_code)
 
 
     def processed_data(self, physical, goal, mem, utterance_feat=None):

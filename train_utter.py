@@ -22,12 +22,13 @@ def main():
     folder_dir = run_default_config.folder_dir
     agent_config = configs.get_agent_config(args)
     game_config = configs.get_game_config(args)
+    utterance_config = configs.get_utterance_config()
     training_config = configs.get_training_config(args, folder_dir)
     corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
-    agent = AgentModule(agent_config, corpus, run_default_config.creating_data_set_mode,
+    agent = AgentModule(agent_config, utterance_config, corpus, run_default_config.creating_data_set_mode,
                         run_default_config.create_utterance_using_old_code)
-    utter = Utterance(agent_config.action_processor, corpus, run_default_config.create_utterance_using_old_code)
-    action = ActionModule(agent_config.action_processor, corpus, run_default_config.create_utterance_using_old_code)
+    utter = Utterance(agent_config.action_processor, utterance_config, corpus, run_default_config.create_utterance_using_old_code)
+    action = ActionModule(agent_config.action_processor, utterance_config, corpus, run_default_config.create_utterance_using_old_code)
     create_data_set = PredefinedUtterancesModule()
     for epoch in range(training_config.num_epochs):
         num_agents = np.random.randint(game_config.min_agents,

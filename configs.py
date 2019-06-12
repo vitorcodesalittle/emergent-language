@@ -40,6 +40,31 @@ DEFAULT_CORPUS = None
 DEFAULT_USE_OLD_UTTERANCE_CODE = False
 
 
+DEFAULT_INIT_RANGE = 0.1
+DEFAULT_NHID_LANG = 256
+DEFAULT_NHID_LANG = 10
+DEFAULT_NHID_CTX = 256
+DEFAULT_DROPOUT = 0.5
+DEFAULT_MOMENTUM = 0.1
+DEFAULT_LR = 0.1
+DEFAULT_NESTEROV = True
+DEFAULT_CLIP = 0.5
+DEFAULT_TEMPERATURE = 0.5
+
+UtteranceConfig = NamedTuple('UtteranceConfig', [
+    ('init_range', float),
+    ('nhid_lang', int),
+    ('nembed_word', int),
+    ('nhid_ctx', int),
+    ('dropout', float),
+    ('momentum', float),
+    ('lr', int),
+    ('nesterov', bool),
+    ('clip', float),
+    ('batch_size', int),
+    ('temperature', float),
+])
+
 
 TrainingConfig = NamedTuple('TrainingConfig', [
     ('num_epochs', int),
@@ -172,11 +197,13 @@ if USE_UTTERANCES:
 else:
     feat_size = DEFAULT_FEAT_VEC_SIZE*2
 
+
 def get_processor_config_with_input_size(input_size):
     return ProcessingModuleConfig(
         input_size=input_size,
         hidden_size=DEFAULT_HIDDEN_SIZE,
         dropout=DEFAULT_DROPOUT)
+
 
 default_action_module_config = ActionModuleConfig(
         goal_processor=get_processor_config_with_input_size(constants.GOAL_SIZE),
@@ -210,6 +237,46 @@ default_agent_config = AgentModuleConfig(
         use_cuda=False,
         df_utterance_col_name = DEFAULT_DF_UTTERANCE_COL_NAME)
 
+default_utterance_config = UtteranceConfig(
+        init_range=DEFAULT_INIT_RANGE,
+        nhid_lang=DEFAULT_NHID_LANG,
+        nembed_word=DEFAULT_NHID_LANG,
+        nhid_ctx=DEFAULT_NHID_CTX,
+        dropout=DEFAULT_DROPOUT,
+        momentum=DEFAULT_MOMENTUM,
+        lr=DEFAULT_LR,
+        nesterov=DEFAULT_NESTEROV,
+        clip=DEFAULT_CLIP,
+        batch_size=default_game_config.batch_size,
+        temperature=DEFAULT_TEMPERATURE)
+
+
+def get_utterance_config():
+    return UtteranceConfig(
+        init_range=default_utterance_config.init_range,
+        nhid_lang=default_utterance_config.nhid_lang,
+        nembed_word=default_utterance_config.nembed_word,
+        nhid_ctx=default_utterance_config.nhid_ctx,
+        dropout=default_utterance_config.dropout,
+        momentum=default_utterance_config.momentum,
+        lr=default_utterance_config.lr,
+        nesterov=default_utterance_config.nesterov,
+        clip=default_utterance_config.clip,
+        batch_size=default_game_config.batch_size,
+        temperature=default_utterance_config.temperature)
+        # init_range=kwargs['init_range'] or default_utterance_config.init_range,
+        # nhid_lang=kwargs['nhid_lang'] or default_utterance_config.nhid_lang,
+        # nembed_word=kwargs['nembed_word'] or default_utterance_config.nembed_word,
+        # nhid_ctx=kwargs['nhid_ctx'] or default_utterance_config.nhid_ctx,
+        # dropout=kwargs['dropout'] or default_utterance_config.dropout,
+        # momentum=kwargs['momentum'] or default_utterance_config.momentum,
+        # lr=kwargs['lr'] or default_utterance_config.lr,
+        # nesterov=kwargs['nesterov'] or default_utterance_config.nesterov,
+        # clip=kwargs['clip'] or default_utterance_config.clip,
+        # batch_size = kwargs['batch_size'] or default_game_config.batch_size,
+        # temperature=kwargs['temperature'] or default_utterance_config.temperature)
+
+
 def get_training_config(kwargs,folder_dir):
     return TrainingConfig(
             num_epochs=kwargs['n_epochs'] or default_training_config.num_epochs,
@@ -220,6 +287,7 @@ def get_training_config(kwargs,folder_dir):
             save_model_file= folder_dir + (kwargs['save_model_weights'] or default_training_config.save_model_file),
             use_cuda=kwargs['use_cuda'],
             no_utterances=kwargs['no_utterances'],)
+
 
 def get_game_config(kwargs):
     return GameConfig(
@@ -286,6 +354,7 @@ def get_agent_config(kwargs):
             df_utterance_col_name=default_agent_config.df_utterance_col_name
             )
 
+
 def get_run_config(kwargs):
     save_to_a_new_dir = kwargs['save_to_a_new_dir'] or default_run_config.save_to_a_new_dir
     creating_data_set_mode = kwargs['creating_data_set_mode'] or default_run_config.creating_data_set_mode
@@ -314,6 +383,7 @@ def get_run_config(kwargs):
         corpus=corpus,
         create_utterance_using_old_code=kwargs['create_utterance_using_old_code'] or default_run_config.create_utterance_using_old_code
           )
+
 
 def create_new_dir():
     """

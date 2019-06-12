@@ -11,37 +11,38 @@ from modules.modules_for_lm import Criterion
 
 
 class Utterance(nn.Module):
-    def __init__(self, config, dataset_dictionary, use_utterance_old_code):
+    def __init__(self, action_processor_config, utterance_config, dataset_dictionary, use_utterance_old_code):
         super(Utterance, self).__init__()
         self.use_utterance_old_code = use_utterance_old_code
 
         self.utterance_chooser = nn.Sequential(
-                    nn.Linear(config.action_processor.hidden_size, config.hidden_size),
+                    nn.Linear(action_processor_config.action_processor.hidden_size, action_processor_config.hidden_size),
                     nn.ELU(),
-                    nn.Linear(config.hidden_size, config.vocab_size))
-        self.gumbel_softmax = GumbelSoftmax(config.use_cuda)
+                    nn.Linear(action_processor_config.hidden_size, action_processor_config.vocab_size))
+        self.gumbel_softmax = GumbelSoftmax(action_processor_config.use_cuda)
 
-        self.args = {'init_range': 0.1, 'nhid_lang': 256, 'nembed_word': 10,
-                 'nhid_ctx': 256, 'dropout': 0.5, 'momentum':0.1,
-                 'lr':1, 'nesterov':True, 'clip':0.5, 'batch_size':512, 'temperature':0.5}
+        # self.args = {'init_range': 0.1, 'nhid_lang': 256, 'nembed_word': 10,
+        #          'nhid_ctx': 256, 'dropout': 0.5, 'momentum':0.1,
+        #          'lr':1, 'nesterov':True, 'clip':0.5, 'batch_size':512, 'temperature':0.5}
         self.dataset_dictionary = dataset_dictionary
         self.lm_model = DialogModel(dataset_dictionary.word_dict, None,
                                 None, 4,
-                                self.args,
+                                utterance_config,
                                 None)
         self.crit = Criterion(dataset_dictionary.word_dict, device_id=None)
-        self.opt = optim.SGD(self.lm_model.parameters(), lr=self.args['lr'],
-                         momentum=self.args['momentum'],
-                         nesterov=(self.args['nesterov'] and self.args['momentum'] > 0))
+        self.opt = optim.SGD(self.lm_model.parameters(), lr=utterance_config.lr,
+                         momentum=utterance_config.momentum,
+                         nesterov=(utterance_config.nesterov and utterance_config.momentum > 0))
         self.total_loss = 0
         # embedding for words
-        self.word_encoder = nn.Embedding(len(dataset_dictionary.word_dict), self.args['nembed_word'])
+        self.word_encoder = nn.Embedding(len(dataset_dictionary.word_dict), utterance_config.nembed_word)
         # a writer, a RNNCell that will be used to generate utterances
         self.writer = nn.GRUCell(
-            input_size=self.args['nhid_ctx'] + self.args['nembed_word'],
-            hidden_size=self.args['nhid_lang'],
+            input_size=utterance_config.nhid_ctx + utterance_config.nembed_word,
+            hidden_size=utterance_config.nhid_lang,
             bias=True)
-        self.decoder = nn.Linear(self.args['nhid_lang'], self.args['nembed_word'])
+        self.decoder = nn.Linear(utterance_config.nhid_lang, utterance_config.nembed_word)
+        self.config = utterance_config
 
 
     def forward(self, processed, full_sentence,mode=None):
@@ -59,14 +60,14 @@ class Utterance(nn.Module):
         encoded_utter = encoded_utter.transpose(0,1)
 
         # create initial hidden state for the language rnn
-        lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.args['nhid_lang'])
+        lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.config.nhid_lang)
         out, lang_h = self.lm_model.forward_lm(encoded_utter, lang_h, processed.unsqueeze(0))
 
         # remove batch dimension from the language and context hidden states
         lang_h = lang_h.squeeze(1)
 
         # if we start a new sentence, prepend it with 'Hi'
-        inpt2 = Variable(torch.LongTensor(1, self.args['batch_size']))
+        inpt2 = Variable(torch.LongTensor(1, self.config.batch_size))
         inpt2.data.fill_(self.dataset_dictionary.word_dict.get_idx('Hi'))
 
         # max_words = 20
@@ -81,7 +82,7 @@ class Utterance(nn.Module):
 
         # decode words using the inverse of the word embedding matrix
         out2 = self.decoder(lang_h)
-        scores = F.linear(out2, self.word_encoder.weight).div(self.args['temperature'])
+        scores = F.linear(out2, self.word_encoder.weight).div(self.config.temperature)
         # subtract constant to avoid overflows in exponentiation
         scores = scores.add(-scores.max().item()).squeeze(0)
 
@@ -111,7 +112,7 @@ class Utterance(nn.Module):
             # loss.backward()
             loss.backward(retain_graph=True)
             torch.nn.utils.clip_grad_norm_(self.lm_model.parameters(),
-                                           self.args['clip'])
+                                           self.config.clip)
             self.opt.step()
             return loss, word
         else:
