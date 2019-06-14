@@ -50,8 +50,9 @@ def main():
             processed, mem = action.processed_data(physical_feat, goal, mem,
                                                    utterance_feat)
             full_sentence = df_utterance[agent_num]['Full Sentence' + str(iter)]
+            # print(full_sentence)
             loss, utterance = utter(processed, full_sentence)
-            print(loss)
+            # print(loss)
 
 
 if __name__ == "__main__":

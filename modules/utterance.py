@@ -27,9 +27,12 @@ class Utterance(nn.Module):
                                 utterance_config,
                                 None)
         self.crit = Criterion(dataset_dictionary.word_dict, device_id=None)
-        self.opt = optim.SGD(self.lm_model.parameters(), lr=utterance_config.lr,
-                         momentum=utterance_config.momentum,
-                         nesterov=(utterance_config.nesterov and utterance_config.momentum > 0))
+        # self.opt = optim.SGD(self.lm_model.parameters(), lr=utterance_config.lr,
+        #                  momentum=utterance_config.momentum,
+        #                  nesterov=(utterance_config.nesterov and utterance_config.momentum > 0))
+        self.opt = optim.Adam(self.lm_model.parameters(),
+                              lr=utterance_config.lr, betas=(0.9, 0.999),
+                              eps=1e-08, weight_decay=0, amsgrad=False)
         self.total_loss = 0
         # embedding for words
         self.word_encoder = nn.Embedding(len(dataset_dictionary.word_dict), utterance_config.nembed_word)
@@ -44,12 +47,13 @@ class Utterance(nn.Module):
     def forward(self, processed, full_sentence, mode=None):
         # perform forward for the language model
         utter = full_sentence.tolist()
+        # utter = ['Hi red agent continue <eos>']*32 #TMP just for testing
         encoded_utter = np.array([self.dataset_dictionary.word_dict.w2i(utter[i].split(" "))
                                   for i in range(len(full_sentence))])
         encoded_pad = self.dataset_dictionary.word_dict.w2i(['<pad>'])
-        longst_sentence = len(max(encoded_utter, key=len))
-        encoded_utter = [encoded_utter[i] + encoded_pad * (longst_sentence - len(encoded_utter[i]))
-                         if len(encoded_utter[i]) < longst_sentence else encoded_utter[i]
+        longest_sentence = len(max(encoded_utter, key=len))
+        encoded_utter = [encoded_utter[i] + encoded_pad * (longest_sentence - len(encoded_utter[i]))
+                         if len(encoded_utter[i]) < longest_sentence else encoded_utter[i]
                          for i in range(len(full_sentence))]
         encoded_utter = Variable(torch.LongTensor(encoded_utter))
         encoded_utter = encoded_utter.transpose(0, 1)
@@ -83,9 +87,13 @@ class Utterance(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.lm_model.parameters(),
                                            self.config.clip)
             self.opt.step()
+            print(loss)
+            print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
             return loss, word
         else:
             self.total_loss += loss
+            print(self.total_loss)
+            print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
             return self.total_loss, word
 
     def create_utterance_using_old_code(self, training, processed):

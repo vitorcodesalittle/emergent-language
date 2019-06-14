@@ -81,7 +81,8 @@ class PredefinedUtterancesModule:
         if mode is None:
             dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
         else:
-            rand_agent_locations = torch.FloatTensor(np.random.uniform(low=0, high=16, size=(512,2,2)))
+            # TODO: use configs and not hard coded dims
+            rand_agent_locations = torch.FloatTensor(np.random.uniform(low=0, high=16, size=(32,2,2)))
             dist_from_goal = rand_agent_locations - game.sorted_goals
         euclidean_distance = torch.sqrt(torch.sum(torch.pow(dist_from_goal, 2), dim=1))
         colors = game.colors

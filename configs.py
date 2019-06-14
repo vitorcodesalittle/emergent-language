@@ -6,7 +6,7 @@ import time
 import constants
 from modules import data
 
-DEFAULT_BATCH_SIZE = 512
+DEFAULT_BATCH_SIZE = 32
 DEFAULT_NUM_EPOCHS = 1000
 DEFAULT_LR = 5e-4
 SAVE_MODEL = True
@@ -42,12 +42,12 @@ DEFAULT_USE_OLD_UTTERANCE_CODE = False
 
 DEFAULT_INIT_RANGE = 0.1
 DEFAULT_NHID_LANG = 256
-DEFAULT_NHID_LANG = 10
+DEFAULT_NEMBED_WORDS = 256
 DEFAULT_NHID_CTX = 256
-DEFAULT_DROPOUT = 0.5
+DEFAULT_DROPOUT = 1
 DEFAULT_MOMENTUM = 0.1
 DEFAULT_LR = 0.1
-DEFAULT_NESTEROV = True
+DEFAULT_NESTEROV = False
 DEFAULT_CLIP = 0.5
 DEFAULT_TEMPERATURE = 0.5
 
@@ -240,7 +240,7 @@ default_agent_config = AgentModuleConfig(
 default_utterance_config = UtteranceConfig(
         init_range=DEFAULT_INIT_RANGE,
         nhid_lang=DEFAULT_NHID_LANG,
-        nembed_word=DEFAULT_NHID_LANG,
+        nembed_word=DEFAULT_NEMBED_WORDS,
         nhid_ctx=DEFAULT_NHID_CTX,
         dropout=DEFAULT_DROPOUT,
         momentum=DEFAULT_MOMENTUM,
