@@ -51,7 +51,8 @@ class Utterance(nn.Module):
         encoded_utter = np.array([self.dataset_dictionary.word_dict.w2i(utter[i].split(" "))
                                   for i in range(len(full_sentence))])
         encoded_pad = self.dataset_dictionary.word_dict.w2i(['<pad>'])
-        longest_sentence = len(max(encoded_utter, key=len))
+        # longest_sentence = len(max(encoded_utter, key=len))
+        longest_sentence = DEFAULT_VOCAB_SIZE
         encoded_utter = [encoded_utter[i] + encoded_pad * (longest_sentence - len(encoded_utter[i]))
                          if len(encoded_utter[i]) < longest_sentence else encoded_utter[i]
                          for i in range(len(full_sentence))]
