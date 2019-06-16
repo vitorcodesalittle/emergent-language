@@ -9,7 +9,6 @@ import torch.nn.functional as F
 from modules.dialog_model import DialogModel
 from modules.modules_for_lm import Criterion
 
-
 class Utterance(nn.Module):
     def __init__(self, action_processor_config, utterance_config, dataset_dictionary, use_utterance_old_code):
         super(Utterance, self).__init__()
@@ -33,7 +32,6 @@ class Utterance(nn.Module):
         self.opt = optim.Adam(self.lm_model.parameters(),
                               lr=utterance_config.lr, betas=(0.9, 0.999),
                               eps=1e-08, weight_decay=0, amsgrad=False)
-        self.total_loss = 0
         # embedding for words
         self.word_encoder = nn.Embedding(len(dataset_dictionary.word_dict), utterance_config.nembed_word)
         # a writer, a RNNCell that will be used to generate utterances
@@ -44,7 +42,8 @@ class Utterance(nn.Module):
         self.decoder = nn.Linear(utterance_config.nhid_lang, utterance_config.nembed_word)
         self.config = utterance_config
 
-    def forward(self, processed, full_sentence, mode=None):
+    def forward(self, processed, full_sentence,total_loss, mode=None):
+        total_loss = total_loss
         # perform forward for the language model
         utter = full_sentence.tolist()
         # utter = ['Hi red agent continue <eos>']*32 #TMP just for testing
@@ -92,11 +91,11 @@ class Utterance(nn.Module):
             print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
             return loss, word
         else:
-            self.total_loss += loss
+            total_loss += loss
             self.opt.zero_grad()
-            print(self.total_loss)
-            print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
-            return self.total_loss, word
+            # print(self.total_loss)
+            # print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
+            return total_loss, word
 
     def create_utterance_using_old_code(self, training, processed):
         utter = self.utterance_chooser(processed)

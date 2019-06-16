@@ -95,9 +95,9 @@ class AgentModule(nn.Module):
             return None
 
     def get_action(self, game, agent, physical_feat, utterance_feat, movements, full_sentence, utterances):
-        movement, utterance, new_mem = self.action_processor(physical_feat, game.observed_goals[:,agent],
+        movement, utterance, new_mem, self.total_loss = self.action_processor(physical_feat, game.observed_goals[:,agent],
                                                              game.memories["action"][:,agent], self.training,
-                                                             self.use_old_utterance_code, full_sentence,
+                                                             self.use_old_utterance_code, full_sentence, self.total_loss,
                                                              utterance_feat)
         self.update_mem(game, "action", new_mem, agent)
         movements[:,agent,:] = movement
@@ -109,7 +109,9 @@ class AgentModule(nn.Module):
         if self.create_data_set_mode:
             self.df_utterance = [pd.DataFrame(index=range(game.batch_size), columns=self.df_utterance_col_name
                                               , dtype=np.int64) for i in range(game.num_agents)]
+        self.total_loss = 0
         for t in range(self.time_horizon):
+            print(t,self.total_loss)
             movements = Variable(self.Tensor(game.batch_size, game.num_entities, self.movement_dim_size).zero_())
             utterances = None
             goal_predictions = None
@@ -131,7 +133,7 @@ class AgentModule(nn.Module):
             if self.penalizing_words:
                 cost = cost + self.word_counter(utterances)
 
-            self.total_cost = self.total_cost + cost
+            self.total_cost = self.total_cost + cost + self.total_loss
             if not self.training:
                 timesteps.append({
                     'locations': game.locations,

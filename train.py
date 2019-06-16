@@ -106,6 +106,7 @@ def main():
 
         total_loss.backward()
         optimizer.step()
+        optimizer.zero_grad()
 
         if num_agents == game_config.max_agents and num_landmarks == game_config.max_landmarks:
             scheduler.step(losses[game_config.max_agents][game_config.max_landmarks][-1])
