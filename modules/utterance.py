@@ -66,7 +66,6 @@ class Utterance(nn.Module):
         # remove batch dimension from the language and context hidden states
         lang_h = lang_h.squeeze(1)
 
-        # # if we start a new sentence, prepend it with 'Hi'
         # inpt2 = Variable(torch.LongTensor(1, self.config.batch_size))
         # inpt2.data.fill_(self.dataset_dictionary.word_dict.get_idx('Hi'))
 
@@ -79,12 +78,13 @@ class Utterance(nn.Module):
         prob = F.softmax(scores, dim=2)
         word = torch.transpose(prob, 0, 1).multinomial(num_samples=DEFAULT_VOCAB_SIZE).detach()
         tgt = encoded_utter.reshape(encoded_utter.shape[0]*encoded_utter.shape[1])
-        # in FB code the inpt and tgt is one demintion less than the original data
+        # in FB code the inpt and tgt is one dimension less than the original data
         loss = self.crit(out.view(-1, len(self.dataset_dictionary.word_dict)), tgt)
         if mode is None:
-            self.opt.zero_grad()
+
             # backward step with gradient clipping, use retain_graph=True
             loss.backward(retain_graph=True)
+            self.opt.zero_grad()
             torch.nn.utils.clip_grad_norm_(self.lm_model.parameters(),
                                            self.config.clip)
             self.opt.step()
@@ -93,6 +93,7 @@ class Utterance(nn.Module):
             return loss, word
         else:
             self.total_loss += loss
+            self.opt.zero_grad()
             print(self.total_loss)
             print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
             return self.total_loss, word

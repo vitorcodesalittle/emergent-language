@@ -125,7 +125,7 @@ class AgentModule(nn.Module):
                 utterance_feat = self.get_utterance_feat(game, agent, goal_predictions)
                 self.get_action(game, agent, physical_feat, utterance_feat, movements,
                                 self.df_utterance[agent]['Full Sentence' + str(t)]
-                                , utterances)
+                                , utterances) #need to chang using self_play
 
             cost = game(movements, goal_predictions, utterances, t)
             if self.penalizing_words:
