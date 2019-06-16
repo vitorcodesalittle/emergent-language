@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
 
-from modules.dialog_model import DialogModel
 from modules.modules_for_lm import Criterion
 from modules.processing import ProcessingModule
 from modules.utterance import Utterance

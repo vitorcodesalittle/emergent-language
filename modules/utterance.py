@@ -44,43 +44,52 @@ class Utterance(nn.Module):
 
     def forward(self, processed, full_sentence,total_loss, mode=None):
         total_loss = total_loss
-        # perform forward for the language model
-        utter = full_sentence.tolist()
-        # utter = ['Hi red agent continue <eos>']*32 #TMP just for testing
-        encoded_utter = np.array([self.dataset_dictionary.word_dict.w2i(utter[i].split(" "))
-                                  for i in range(len(full_sentence))])
-        encoded_pad = self.dataset_dictionary.word_dict.w2i(['<pad>'])
-        # longest_sentence = len(max(encoded_utter, key=len))
-        longest_sentence = DEFAULT_VOCAB_SIZE
-        encoded_utter = [encoded_utter[i] + encoded_pad * (longest_sentence - len(encoded_utter[i]))
-                         if len(encoded_utter[i]) < longest_sentence else encoded_utter[i]
-                         for i in range(len(full_sentence))]
-        encoded_utter = Variable(torch.LongTensor(encoded_utter))
-        encoded_utter = encoded_utter.transpose(0, 1)
-
-        # create initial hidden state for the language rnn
         lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.config.nhid_lang)
-        out, lang_h = self.lm_model.forward_lm(encoded_utter, lang_h, processed.unsqueeze(0))
+        # perform forward for the language model, here enter the selfplay
+        if mode is None or full_sentence is not None:
+            utter = full_sentence.tolist()
+            # utter = ['Hi red agent continue <eos>']*32 #TMP just for testing
+            encoded_utter = np.array([self.dataset_dictionary.word_dict.w2i(utter[i].split(" "))
+                                      for i in range(len(full_sentence))])
+            encoded_pad = self.dataset_dictionary.word_dict.w2i(['<pad>'])
+            # longest_sentence = len(max(encoded_utter, key=len))
+            longest_sentence = DEFAULT_VOCAB_SIZE
+            encoded_utter = [encoded_utter[i] + encoded_pad * (longest_sentence - len(encoded_utter[i]))
+                             if len(encoded_utter[i]) < longest_sentence else encoded_utter[i]
+                             for i in range(len(full_sentence))]
+            encoded_utter = Variable(torch.LongTensor(encoded_utter))
+            encoded_utter = encoded_utter.transpose(0, 1)
 
-        # remove batch dimension from the language and context hidden states
-        lang_h = lang_h.squeeze(1)
+            out, lang_h = self.lm_model.forward_lm(encoded_utter, lang_h, processed.unsqueeze(0))
 
-        # inpt2 = Variable(torch.LongTensor(1, self.config.batch_size))
-        # inpt2.data.fill_(self.dataset_dictionary.word_dict.get_idx('Hi'))
+            # remove batch dimension from the language and context hidden states
+            lang_h = lang_h.squeeze(1)
 
-        # decode words using the inverse of the word embedding matrix
-        decoded_lang_h = self.decoder(lang_h)
-        scores = F.linear(decoded_lang_h, self.word_encoder.weight).div(self.config.temperature)
-        # subtract constant to avoid overflows in exponentiation
-        scores = scores.add(-scores.max().item()).squeeze(0)
+            # inpt2 = Variable(torch.LongTensor(1, self.config.batch_size))
+            # inpt2.data.fill_(self.dataset_dictionary.word_dict.get_idx('Hi'))
 
-        prob = F.softmax(scores, dim=2)
-        word = torch.transpose(prob, 0, 1).multinomial(num_samples=DEFAULT_VOCAB_SIZE).detach()
-        tgt = encoded_utter.reshape(encoded_utter.shape[0]*encoded_utter.shape[1])
-        # in FB code the inpt and tgt is one dimension less than the original data
-        loss = self.crit(out.view(-1, len(self.dataset_dictionary.word_dict)), tgt)
+            # decode words using the inverse of the word embedding matrix
+            decoded_lang_h = self.decoder(lang_h)
+            scores = F.linear(decoded_lang_h, self.word_encoder.weight).div(self.config.temperature)
+            # subtract constant to avoid overflows in exponentiation
+            scores = scores.add(-scores.max().item()).squeeze(0)
+
+            prob = F.softmax(scores, dim=2)
+            word = torch.transpose(prob, 0, 1).multinomial(num_samples=DEFAULT_VOCAB_SIZE).detach()
+            tgt = encoded_utter.reshape(encoded_utter.shape[0] * encoded_utter.shape[1])
+            # in FB code the inpt and tgt is one dimension less than the original data
+            loss = self.crit(out.view(-1, len(self.dataset_dictionary.word_dict)), tgt)
+
+        else:
+            # create initial hidden state for the language rnn
+            self.lang_hs = []
+            self.words = torch.LongTensor(size=[self.config.batch_size,DEFAULT_VOCAB_SIZE])
+            utter = self.write(lang_h ,processed.unsqueeze(0)) #undecoded utter, to decode it use: self._decode(utter, self.lm_model.word_dict)
+            #todo - missing - I don't know what should I do with the loss?
+            #only for now:
+            loss = 0
+
         if mode is None:
-
             # backward step with gradient clipping, use retain_graph=True
             loss.backward(retain_graph=True)
             self.opt.zero_grad()
@@ -109,3 +118,18 @@ class Utterance(nn.Module):
             max_utter = max_utter.data[0]
             utterance[0, max_utter] = 1
         return utterance
+
+    def write(self, lang_h, processed):
+        # generate a new utterance #todo Start HERE!
+        outs, self.lang_h, lang_hs = self.lm_model.write(lang_h, processed, DEFAULT_VOCAB_SIZE-1 , self.config.temperature)
+        outs = torch.transpose(outs,0,1)
+        self.lang_hs.append(lang_hs)
+        # first add the special 'Hi' token
+        self.words[:,0] = self.lm_model.word2var('Hi').unsqueeze(1)  # change to Hi
+        # then append the utterance
+        self.words[:,1:] = outs
+        # assert (torch.cat(self.words).size()[0] == torch.cat(self.lang_hs).size()[0]) #todo debag
+        return outs
+        # # decode into English words
+        #self._decode = dictionary.i2w(out.data.cpu())
+        # return self._decode(outs, self.lm_model.word_dict)

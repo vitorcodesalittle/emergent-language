@@ -94,7 +94,7 @@ class AgentModule(nn.Module):
         else:
             return None
 
-    def get_action(self, game, agent, physical_feat, utterance_feat, movements, full_sentence, utterances):
+    def get_action(self, game, agent, physical_feat, utterance_feat, movements, utterances, full_sentence=None):
         movement, utterance, new_mem, self.total_loss = self.action_processor(physical_feat, game.observed_goals[:,agent],
                                                              game.memories["action"][:,agent], self.training,
                                                              self.use_old_utterance_code, full_sentence, self.total_loss,
@@ -111,7 +111,6 @@ class AgentModule(nn.Module):
                                               , dtype=np.int64) for i in range(game.num_agents)]
         self.total_loss = 0
         for t in range(self.time_horizon):
-            print(t,self.total_loss)
             movements = Variable(self.Tensor(game.batch_size, game.num_entities, self.movement_dim_size).zero_())
             utterances = None
             goal_predictions = None
@@ -125,9 +124,11 @@ class AgentModule(nn.Module):
             for agent in range(game.num_agents):
                 physical_feat = self.get_physical_feat(game, agent)
                 utterance_feat = self.get_utterance_feat(game, agent, goal_predictions)
-                self.get_action(game, agent, physical_feat, utterance_feat, movements,
-                                self.df_utterance[agent]['Full Sentence' + str(t)]
-                                , utterances) #need to chang using self_play
+                if self.create_data_set_mode:
+                    self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances,
+                                    self.df_utterance[agent]['Full Sentence' + str(t)])
+                else:
+                    self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances)
 
             cost = game(movements, goal_predictions, utterances, t)
             if self.penalizing_words:

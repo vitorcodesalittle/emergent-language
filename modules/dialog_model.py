@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.init
 from torch.autograd import Variable
 import torch.nn.functional as F
-
+import numpy as np
 from modules import modules_for_lm
 
 
@@ -56,7 +56,7 @@ class DialogModel(modules_for_lm.CudaModule):
         # fill in the mask
         for i in range(len(self.word_dict)):
             w = self.word_dict.get_word(i)
-            special = item_pattern.match(w) or w in ('<unk>', 'YOU:', 'THEM:', '<pad>')
+            special = item_pattern.match(w) or w in ('<unk>', 'Hi', '<pad>')
             self.special_token_mask[i] = -999 if special else 0.0
 
         self.special_token_mask = self.to_device(self.special_token_mask)
@@ -114,69 +114,82 @@ class DialogModel(modules_for_lm.CudaModule):
         '<eos>'
     ]
 
-    def write(self, lang_h, ctx_h, max_words, temperature,
+    # this is the LSTM network, will be also used in the selfplay mode or in our case in the "fine tune"
+    def write(self, lang_h, processed, max_words, temperature,
             stop_tokens=STOP_TOKENS, resume=False):
         """Generate a sentence word by word and feed the output of the
         previous timestep as input to the next.
         """
-        outs, logprobs, lang_hs = [], [], []
-        # remove batch dimension from the language and context hidden states
-        lang_h = lang_h.squeeze(1)
-        ctx_h = ctx_h.squeeze(1)
+        encoded_pad = self.word_dict.w2i(['<pad>'])
+        btz_total = lang_h.size()[1]
+        lang_h = lang_h.squeeze(0)
+        processed = processed.squeeze(0)
+        outs_btz = torch.LongTensor(size=[max_words,btz_total])
+        lang_hs_btz = []
 
-        if resume:
-            inpt = None
-        else:
-            # if we start a new sentence, prepend it with 'YOU:'
-            inpt = Variable(torch.LongTensor(1))
-            inpt.data.fill_(self.word_dict.get_idx('YOU:'))
-            inpt = self.to_device(inpt)
+        for btz in range(btz_total):
+            outs, logprobs, lang_hs = [], [], []
+            # remove batch dimension from the language and context hidden states
+            lang_h_btz = lang_h[btz].unsqueeze(0)
+            processed_btz = processed[btz].unsqueeze(0)
 
-        # generate words until max_words have been generated or <selection>
-        for _ in range(max_words):
-            if inpt is not None:
-                # add the context to the word embedding
-                inpt_emb = torch.cat([self.word_encoder(inpt), ctx_h], 1)
-                # update RNN state with last word
-                lang_h = self.writer(inpt_emb, lang_h)
-                lang_hs.append(lang_h)
+            if resume:
+                inpt = None
+            else:
+                # if we start a new sentence, prepend it with 'Hi'
+                inpt = Variable(torch.LongTensor(1))
+                inpt.data.fill_(self.word_dict.get_idx('Hi'))
+                inpt = self.to_device(inpt)
 
-            # decode words using the inverse of the word embedding matrix
-            out = self.decoder(lang_h)
-            scores = F.linear(out, self.word_encoder.weight).div(temperature)
-            # subtract constant to avoid overflows in exponentiation
-            scores = scores.add(-scores.max().item()).squeeze(0)
+            # generate words until max_words have been generated or <eos>
+            for _ in range(max_words):
+                if inpt is not None:
+                    # add the context to the word embedding
+                    inpt_emb = torch.cat([self.word_encoder(inpt), processed_btz], 1)
+                    # update RNN state with last word
+                    lang_h_btz = self.writer(inpt_emb, lang_h_btz)
+                    lang_hs.append(lang_h_btz)
 
-            # disable special tokens from being generated in a normal turns
-            if not resume:
-                mask = Variable(self.special_token_mask)
-                scores = scores.add(mask)
+                # decode words using the inverse of the word embedding matrix
+                out = self.decoder(lang_h_btz)
+                scores = F.linear(out, self.word_encoder.weight).div(temperature)
+                # subtract constant to avoid overflows in exponentiation
+                scores = scores.add(-scores.max().item()).squeeze(0)
 
-            prob = F.softmax(scores,dim=0)
-            logprob = F.log_softmax(scores,dim=0)
+                # disable special tokens from being generated in a normal turns
+                if not resume:
+                    mask = Variable(self.special_token_mask)
+                    scores = scores.add(mask)
 
-            # explicitly defining num_samples for pytorch 0.4.1
-            word = prob.multinomial(num_samples=1).detach()
-            logprob = logprob.gather(0, word)
+                prob = F.softmax(scores,dim=0)
+                logprob = F.log_softmax(scores,dim=0)
 
-            logprobs.append(logprob)
-            outs.append(word.view(word.size()[0], 1))
+                # explicitly defining num_samples for pytorch 0.4.1
+                word = prob.multinomial(num_samples=1).detach()
+                # logprob = logprob.gather(0, word)
 
-            inpt = word
+                # logprobs.append(logprob)
+                outs.append(word.view(word.size()[0], 1))
 
-            # check if we generated an <eos> token
-            if self.word_dict.get_word(word.data[0]) in stop_tokens:
-                break
+                # check if we generated an <eos> token
+                if self.word_dict.get_word(word.data[0]) in stop_tokens:
+                    break
 
-        # update the hidden state with the <eos> token
-        inpt_emb = torch.cat([self.word_encoder(inpt), ctx_h], 1)
-        lang_h = self.writer(inpt_emb, lang_h)
-        lang_hs.append(lang_h)
+            # update the hidden state with the <eos> token
+            inpt_emb = torch.cat([self.word_encoder(inpt), processed_btz], 1)
+            lang_h_btz = self.writer(inpt_emb, lang_h_btz)
+            lang_hs.append(lang_h_btz)
 
-        # add batch dimension back
-        lang_h = lang_h.unsqueeze(1)
-
-        return logprobs, torch.cat(outs), lang_h, torch.cat(lang_hs)
+            # add batch dimension back
+            lang_h_btz = lang_h_btz.unsqueeze(1)
+            if len(outs)<max_words:
+                outs = [outs[i].item() for i in range(len(outs))]
+                outs = outs + encoded_pad * (max_words - len(outs))
+                outs = [torch.LongTensor([[i]]) for i in outs]
+            outs_btz[:,btz] = torch.cat(outs).squeeze(1)
+            lang_h[btz]= lang_h_btz
+            lang_hs_btz += [torch.cat(lang_hs)]
+        return outs_btz, lang_h, lang_hs_btz
 
     def forward_lm(self, inpt, lang_h, ctx_h):
         """Run forward pass for language modeling."""
