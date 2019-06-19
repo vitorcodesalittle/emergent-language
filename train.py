@@ -35,7 +35,7 @@ parser.add_argument('--save-model-weights', type=str, help='if specified save th
 parser.add_argument('--use-cuda', action='store_true', default=False, help='if specified enables training on CUDA (default disabled)')
 parser.add_argument('--upload-trained-model', help='if specified the trained model weights will be uploaded and the network will continue the run with then')
 parser.add_argument('--dir-upload-model', required=False, type=str, help='Directory to folder containing the trained model')
-parser.add_argument('--save-to-a-new-dir', required=False, type=bool, help='define if we want to save the info in a new dir or are we in debag mode and all of the data weill be moved to debag folder')
+parser.add_argument('--save-to-a-new-dir', required=False, type=bool, help='define if we want to save the info in a new dir or are we in debag mode and all of the data.txt weill be moved to debag folder')
 parser.add_argument('--creating-data-set-mode', required=False, type=bool, help='define if we are in create dataset mode or not')
 parser.add_argument('--create-utterance-using-old-code', type=bool, help='use when we want to create dataset, or create the trained model that the dataset code willuse ')
 
@@ -46,8 +46,8 @@ def print_losses(epoch, losses, dists, game_config, writer):
             min_loss = min(losses[a][l]) if len(losses[a][l]) > 0 else 0
             dist = dists[a][l][-1] if len(dists[a][l]) > 0 else 0
             min_dist = min(dists[a][l]) if len(dists[a][l]) > 0 else 0
-            writer.add_scalar('Loss,' + str(a) + 'agents,' + str(l) + 'landmarks' , loss, epoch) #data for Tensorboard
-            writer.add_scalar('dist,' + str(a) + 'agents,' + str(l) + 'landmarks' , dist, epoch) #data for TensorBoard
+            writer.add_scalar('Loss,' + str(a) + 'agents,' + str(l) + 'landmarks' , loss, epoch) #data.txt for Tensorboard
+            writer.add_scalar('dist,' + str(a) + 'agents,' + str(l) + 'landmarks' , dist, epoch) #data.txt for TensorBoard
 
             print("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f][min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
     print("_________________________")

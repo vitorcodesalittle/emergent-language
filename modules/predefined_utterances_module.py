@@ -62,7 +62,8 @@ class PredefinedUtterancesModule:
         for token in tokens:
             sentence = sentence.replace('<' + token + '>', colors_dict[int(row[token])])
         sentence += ' ' + end_token
-        return sentence
+        # return sentence
+        return 'YOU: Hi green agent go to blue landmark please <eos>'
 
     def generate_sentence(self,agent_color, agent_shape, lm_color, lm_shape, dist, iter, df_utterance, mode):
         if iter == 0 or mode is not None:
@@ -82,8 +83,10 @@ class PredefinedUtterancesModule:
             dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
         else:
             # TODO: use configs and not hard coded dims
-            rand_agent_locations = torch.FloatTensor(np.random.uniform(low=0, high=16, size=(32,2,2)))
-            dist_from_goal = rand_agent_locations - game.sorted_goals
+            rand_agent_locations = torch.FloatTensor(np.random.uniform(low=0, high=16, size=(16,2,2)))
+            # dist_from_goal = rand_agent_locations - game.sorted_goals
+            dist_from_goal = torch.FloatTensor(np.full((16,2,2), 2))
+
         euclidean_distance = torch.sqrt(torch.sum(torch.pow(dist_from_goal, 2), dim=1))
         colors = game.colors
         shapes = game.shapes
@@ -111,7 +114,7 @@ class PredefinedUtterancesModule:
             col_index += 4
         col_index += 1
         dataset_log.loc[:, col_index] = "</input>"
-        dataset_log.loc[:, col_index+1] = "<dialog>"
+        dataset_log.loc[:, col_index+1] = "<dialogue>"
         col_index += 1
         len_sentence_iter = 2 * len(df_utterance[0].columns) - 2*len(df_utterance_col_name)
         for j, i in enumerate(range(0, len_sentence_iter, 2)):

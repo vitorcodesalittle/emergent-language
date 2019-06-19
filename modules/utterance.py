@@ -26,12 +26,12 @@ class Utterance(nn.Module):
                                 utterance_config,
                                 None)
         self.crit = Criterion(dataset_dictionary.word_dict, device_id=None)
-        # self.opt = optim.SGD(self.lm_model.parameters(), lr=utterance_config.lr,
-        #                  momentum=utterance_config.momentum,
-        #                  nesterov=(utterance_config.nesterov and utterance_config.momentum > 0))
-        self.opt = optim.Adam(self.lm_model.parameters(),
-                              lr=utterance_config.lr, betas=(0.9, 0.999),
-                              eps=1e-08, weight_decay=0, amsgrad=False)
+        self.opt = optim.SGD(self.lm_model.parameters(), lr=utterance_config.lr,
+                         momentum=utterance_config.momentum,
+                         nesterov=(utterance_config.nesterov and utterance_config.momentum > 0))
+        # self.opt = optim.Adam(self.lm_model.parameters(),
+        #                       lr=utterance_config.lr, betas=(0.9, 0.999),
+        #                       eps=1e-08, weight_decay=0, amsgrad=False)
         # embedding for words
         self.word_encoder = nn.Embedding(len(dataset_dictionary.word_dict), utterance_config.nembed_word)
         # a writer, a RNNCell that will be used to generate utterances
@@ -42,7 +42,16 @@ class Utterance(nn.Module):
         self.decoder = nn.Linear(utterance_config.nhid_lang, utterance_config.nembed_word)
         self.config = utterance_config
 
-    def forward(self, processed, full_sentence,total_loss, mode=None):
+        # mask for disabling special tokens when generating sentences
+        self.special_token_mask = torch.FloatTensor(13)
+
+        # fill in the mask
+        for i in range(13):
+            w = self.dataset_dictionary.word_dict.get_word(i)
+            special = w in ('<unk>', 'YOU:', '<pad>')
+            self.special_token_mask[i] = -999 if special else 0.0
+
+    def forward(self, processed, full_sentence, total_loss=None, mode=None):
         total_loss = total_loss
         lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.config.nhid_lang)
         # perform forward for the language model, here enter the selfplay
@@ -59,45 +68,57 @@ class Utterance(nn.Module):
                              for i in range(len(full_sentence))]
             encoded_utter = Variable(torch.LongTensor(encoded_utter))
             encoded_utter = encoded_utter.transpose(0, 1)
-
-            out, lang_h = self.lm_model.forward_lm(encoded_utter, lang_h, processed.unsqueeze(0))
+            inpt = encoded_utter.narrow(0, 0, encoded_utter.size(0) - 1)
+            out, lang_h = self.lm_model.forward_lm(inpt, lang_h, processed.unsqueeze(0)) # runs
 
             # remove batch dimension from the language and context hidden states
             lang_h = lang_h.squeeze(1)
 
             # inpt2 = Variable(torch.LongTensor(1, self.config.batch_size))
-            # inpt2.data.fill_(self.dataset_dictionary.word_dict.get_idx('Hi'))
+            # inpt2.data.txt.fill_(self.dataset_dictionary.word_dict.get_idx('Hi'))
 
             # decode words using the inverse of the word embedding matrix
-            decoded_lang_h = self.decoder(lang_h)
-            scores = F.linear(decoded_lang_h, self.word_encoder.weight).div(self.config.temperature)
-            # subtract constant to avoid overflows in exponentiation
-            scores = scores.add(-scores.max().item()).squeeze(0)
-
-            prob = F.softmax(scores, dim=2)
-            word = torch.transpose(prob, 0, 1).multinomial(num_samples=DEFAULT_VOCAB_SIZE).detach()
-            tgt = encoded_utter.reshape(encoded_utter.shape[0] * encoded_utter.shape[1])
-            # in FB code the inpt and tgt is one dimension less than the original data
+            for i in range(16):
+                word_list= []
+                for j in range(9):
+                    decoded_lang_h = self.decoder(lang_h[j][i])
+                    scores = F.linear(decoded_lang_h, self.word_encoder.weight).div(self.config.temperature)
+                    # subtract constant to avoid overflows in exponentiation
+                    scores = scores.add(-scores.max().item()).squeeze(0)
+                    # disable special tokens from being generated in a normal turns
+                    mask = Variable(self.special_token_mask)
+                    scores = scores.add(mask)
+                    prob = F.softmax(scores, dim=0)
+                    word = prob.multinomial(num_samples=1).detach()
+                    word_list.append(self.dataset_dictionary.word_dict.i2w(word))
+            print(word_list)
+            # prob = F.softmax(scores, dim=2)
+            # word = torch.transpose(prob, 0, 1).multinomial(num_samples=DEFAULT_VOCAB_SIZE).detach()
+            encoded_utter = encoded_utter.contiguous()
+            tgt = encoded_utter.narrow(0, 1, encoded_utter.size(0) - 1).view(-1)
+            # tgt = encoded_utter.reshape(encoded_utter.shape[0] * encoded_utter.shape[1])
+            # in FB code the inpt and tgt is one dimension less than the original data.txt
             loss = self.crit(out.view(-1, len(self.dataset_dictionary.word_dict)), tgt)
 
         else:
             # create initial hidden state for the language rnn
             self.lang_hs = []
             self.words = torch.LongTensor(size=[self.config.batch_size,DEFAULT_VOCAB_SIZE])
-            utter = self.write(lang_h ,processed.unsqueeze(0)) #undecoded utter, to decode it use: self._decode(utter, self.lm_model.word_dict)
+            word = self.write(lang_h ,processed.unsqueeze(0)) #undecoded utter, to decode it use: self._decode(utter, self.lm_model.word_dict)
             #todo - missing - I don't know what should I do with the loss?
             #only for now:
             loss = 0
 
         if mode is None:
-            # backward step with gradient clipping, use retain_graph=True
-            loss.backward(retain_graph=True)
             self.opt.zero_grad()
+
+            # backward step with gradient clipping, use retain_graph=True
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(self.lm_model.parameters(),
                                            self.config.clip)
             self.opt.step()
             print(loss)
-            print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
+            # print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
             return loss, word
         else:
             total_loss += loss
@@ -131,5 +152,5 @@ class Utterance(nn.Module):
         # assert (torch.cat(self.words).size()[0] == torch.cat(self.lang_hs).size()[0]) #todo debag
         return outs
         # # decode into English words
-        #self._decode = dictionary.i2w(out.data.cpu())
+        #self._decode = dictionary.i2w(out.data.txt.cpu())
         # return self._decode(outs, self.lm_model.word_dict)

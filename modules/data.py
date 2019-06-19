@@ -110,7 +110,7 @@ class Dictionary(object):
     def from_file(file_name, freq_cutoff):
         """Constructs a dictionary from the given file."""
         assert os.path.exists(file_name)
-        word_dict = Dictionary.read_tag(file_name, 'dialog', freq_cutoff=freq_cutoff)
+        word_dict = Dictionary.read_tag(file_name, 'dialogue', freq_cutoff=freq_cutoff)
         item_dict = Dictionary.read_tag(file_name, 'output', init_dict=False)
         context_dict = Dictionary.read_tag(file_name, 'input', init_dict=False)
         return word_dict, item_dict, context_dict
@@ -119,13 +119,13 @@ class Dictionary(object):
 class WordCorpus(object):
     """An utility that stores the entire dataset.
 
-    It has the train, valid and test datasets and corresponding dictionaries.
+    It has the train.txt, valid and test.txt datasets and corresponding dictionaries.
     """
 
     def __init__(self, path, freq_cutoff=2, train='dataset_train.txt',
         valid='dataset_val.txt', test='dataset_test.txt', verbose=False):
         self.verbose = verbose
-        # only add words from the train dataset
+        # only add words from the train.txt dataset
         self.word_dict, self.item_dict, self.context_dict = Dictionary.from_file(
             os.path.join(path, train),
             freq_cutoff=freq_cutoff)
@@ -135,7 +135,7 @@ class WordCorpus(object):
         self.valid = self.tokenize(os.path.join(path, valid)) if valid else []
         self.test = self.tokenize(os.path.join(path, test)) if test else []
 
-        # find out the output length from the train dataset
+        # find out the output length from the train.txt dataset
         self.output_length = max([len(x[2]) for x in self.train])
 
     def tokenize(self, file_name):
@@ -148,7 +148,7 @@ class WordCorpus(object):
         for line in lines:
             tokens = line.split()
             input_idxs = self.context_dict.w2i(get_tag(tokens, 'input'))
-            word_idxs = self.word_dict.w2i(get_tag(tokens, 'dialog'))
+            word_idxs = self.word_dict.w2i(get_tag(tokens, 'dialogue'))
             item_idxs = self.item_dict.w2i(get_tag(tokens, 'output'))
             dataset.append((input_idxs, word_idxs, item_idxs))
             # compute statistics

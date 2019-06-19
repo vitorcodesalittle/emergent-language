@@ -5,8 +5,15 @@ from pathlib import Path
 import time
 import constants
 from modules import data
+from typing import NamedTuple, Any
 
-DEFAULT_BATCH_SIZE = 32
+import os
+from pathlib import Path
+import time
+import constants
+from modules import data
+
+DEFAULT_BATCH_SIZE = 16 ### 32
 DEFAULT_NUM_EPOCHS = 1000
 DEFAULT_LR = 5e-4
 SAVE_MODEL = True
@@ -19,7 +26,7 @@ DEFAULT_TIME_HORIZON = 16
 
 USE_UTTERANCES = False
 PENALIZE_WORDS = True
-DEFAULT_VOCAB_SIZE = 10
+DEFAULT_VOCAB_SIZE = 9 #10
 DEFAULT_OOV_PROB = 1
 DEFAULT_DF_UTTERANCE_COL_NAME = ['agent_color', 'agent_shape', 'lm_color', 'lm_shape', 'sentence']
 
@@ -41,10 +48,10 @@ DEFAULT_USE_OLD_UTTERANCE_CODE = False
 
 
 DEFAULT_INIT_RANGE = 0.1
-DEFAULT_NHID_LANG = 256
+DEFAULT_NHID_LANG = 128 #256
 DEFAULT_NEMBED_WORDS = 256
-DEFAULT_NHID_CTX = 256
-DEFAULT_DROPOUT = 1
+DEFAULT_NHID_CTX = 64 #256
+DEFAULT_DROPOUT = 0.5
 DEFAULT_MOMENTUM = 0.1
 DEFAULT_LR = 0.1
 DEFAULT_NESTEROV = False

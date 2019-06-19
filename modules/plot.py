@@ -154,7 +154,7 @@ class Plot:
 
     @staticmethod
     def extract_data(epoch, dir=None, calculate_utternace=None,calculate_dist=None):
-        #extracting the matrices containing the data from the file
+        #extracting the matrices containing the data.txt from the file
         if dir is None:
             dir = os.getcwd() + os.sep
         if calculate_utternace is None and calculate_dist is None:

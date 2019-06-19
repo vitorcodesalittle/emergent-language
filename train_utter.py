@@ -30,25 +30,36 @@ def main():
     utter = Utterance(agent_config.action_processor, utterance_config, corpus, run_default_config.create_utterance_using_old_code)
     action = ActionModule(agent_config.action_processor, utterance_config, corpus, run_default_config.create_utterance_using_old_code)
     create_data_set = PredefinedUtterancesModule()
+    num_agents = np.random.randint(game_config.min_agents,
+                                   game_config.max_agents + 1)
+    num_landmarks = np.random.randint(game_config.min_landmarks,
+                                      game_config.max_landmarks + 1)
+    agent.reset()
+    game = GameModule(game_config, num_agents, num_landmarks, folder_dir)
     for epoch in range(training_config.num_epochs):
-        num_agents = np.random.randint(game_config.min_agents,
-                                       game_config.max_agents + 1)
-        num_landmarks = np.random.randint(game_config.min_landmarks,
-                                          game_config.max_landmarks + 1)
-        agent.reset()
-        game = GameModule(game_config, num_agents, num_landmarks, folder_dir)
+        # num_agents = np.random.randint(game_config.min_agents,
+        #                                game_config.max_agents + 1)
+        # num_landmarks = np.random.randint(game_config.min_landmarks,
+        #                                   game_config.max_landmarks + 1)
+        # agent.reset()
+        # game = GameModule(game_config, num_agents, num_landmarks, folder_dir)
         df_utterance = [pd.DataFrame(index=range(game.batch_size), columns=agent.df_utterance_col_name
                                           , dtype=np.int64) for i in range(game.num_agents)]
-        iter = random.randint(0, game.time_horizon)
+        # iter = random.randint(0, game.time_horizon)
+        iter = 3
         df_utterance = create_data_set.generate_sentences(game, iter, df_utterance, mode="train utter")
+        processed = torch.FloatTensor(
+            np.random.uniform(low=-0.01, high=0.01, size=[16, 64]))
+        tmp = [0.1]*64
+        processed = torch.FloatTensor([tmp]*16)
 
         for agent_num in range(game.num_agents):
             physical_feat = agent.get_physical_feat(game, agent_num)
             mem = Variable(torch.zeros(game.batch_size, game.num_agents,game_config.memory_size)[:, agent_num])
             utterance_feat = torch.zeros([game.batch_size, 1, 256], dtype=torch.float)
             goal = game.observed_goals[:, agent_num]
-            processed, mem = action.processed_data(physical_feat, goal, mem,
-                                                   utterance_feat)
+            # processed, mem = action.processed_data(physical_feat, goal, mem,
+            #                                        utterance_feat)
             full_sentence = df_utterance[agent_num]['Full Sentence' + str(iter)]
             # print(full_sentence)
             loss, utterance = utter(processed, full_sentence)
