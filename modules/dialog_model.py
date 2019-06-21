@@ -4,7 +4,7 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 """
-An RNN based dialogue model. Performce both language and choice generation.
+An RNN based dialogueue model. Performce both language and choice generation.
 """
 
 import re

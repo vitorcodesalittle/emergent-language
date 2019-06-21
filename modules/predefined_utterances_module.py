@@ -32,7 +32,7 @@ stay_sentences = [
 done_sentences = [
     "<agent_color> agent is done",
     "<agent_color> <agent_shape> agent is done",
-    "<agent_shape> agent is done"
+    "<agent_shape> agent is done",
     "<agent_color> good job",
     "<agent_color> <agent_shape> good job",
     "<agent_shape> good job",
@@ -50,7 +50,10 @@ class PredefinedUtterancesModule:
     def generate_single_sentence(row, iter, one_sentence_mode):
         row = row
         if one_sentence_mode:
-            sentence = 'Hi blue agent go to green landmark <eos>'
+            sentence_list = ['Hi blue agent go to green landmark <eos>'
+                , 'Hi red agent go to green landmark <eos>','Hi blue agent continue <eos> ']
+            sentence =random.choice(sentence_list)
+            # sentence = 'Hi blue agent go to green landmark <eos>'
         else:
             if iter == 0:
                 sentence = random.randint(0, len(goto_sentences) - 1)
@@ -61,10 +64,13 @@ class PredefinedUtterancesModule:
             else:
                 sentence = random.randint(0, len(done_sentences) - 1)
                 sentence_ds = done_sentences
-            sentence = start_token + ' ' + sentence_ds[sentence]
+            sentence = start_token + ' ' + sentence_ds[sentence] + ' ' + end_token
             for token in tokens:
-                sentence = sentence.replace('<' + token + '>', colors_dict[int(row[token])])
-            sentence += ' ' + end_token
+                if 'color' in token:
+                    sentence = sentence.replace('<' + token + '>', colors_dict[int(row[token])])
+                elif 'shape' in token:
+                    sentence = sentence.replace('<' + token + '>', shapes_dict[int(row[token])])
+
         return sentence
 
     def generate_sentence(self,agent_color, agent_shape, lm_color, lm_shape, dist, iter, df_utterance, mode):
@@ -80,7 +86,7 @@ class PredefinedUtterancesModule:
             lambda row: PredefinedUtterancesModule.generate_single_sentence(row, iter, self.one_sentence_mode), axis=1, reduce=False )
         return df_utterance
 
-    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode, mode = None):
+    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode=False, mode = None):
         self.one_sentence_mode = one_sentence_mode
         if mode is None:
             dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
@@ -117,15 +123,15 @@ class PredefinedUtterancesModule:
             dataset_log.loc[:, col_index:col_index+3] = df_utterance[agent].filter(regex=input_regex).values
             col_index += 4
         col_index += 1
-        dataset_log.loc[:, col_index] = "</input>"
-        dataset_log.loc[:, col_index+1] = "<dialog>"
+        dataset_log.loc[:, col_index-1] = "</input>"
+        dataset_log.loc[:, col_index] = "<dialogue>"
         col_index += 1
         len_sentence_iter = 2 * len(df_utterance[0].columns) - 2*len(df_utterance_col_name)
         for j, i in enumerate(range(0, len_sentence_iter, 2)):
             dataset_log.loc[:, col_index + i] = df_utterance[0].filter(regex='Full Sentence{0}'.format(j)).values
             dataset_log.loc[:, col_index + i + 1] = df_utterance[1].filter(regex='Full Sentence{0}'.format(j)).values
         col_index += len_sentence_iter
-        dataset_log.loc[:, col_index] = "</dialog>"
+        dataset_log.loc[:, col_index] = "</dialogue>"
         dataset_log.loc[:, col_index+1] = "<output>"
         dataset_log.loc[:, col_index+2] = df_utterance[0].filter(regex="dist").values
         dataset_log.loc[:, col_index+3] = df_utterance[1].filter(regex="dist").values

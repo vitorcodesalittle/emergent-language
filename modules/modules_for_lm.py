@@ -68,7 +68,7 @@ class CudaModule(nn.Module):
 
 
 class RnnContextEncoder(CudaModule):
-    """A module that encodes dialogues context using an RNN."""
+    """A module that encodes dialogueues context using an RNN."""
     def __init__(self, n, k, nembed, nhid, init_range, device_id):
         super(RnnContextEncoder, self).__init__(device_id)
         self.nhid = nhid
@@ -94,7 +94,7 @@ class RnnContextEncoder(CudaModule):
 
 
 class MlpContextEncoder(CudaModule):
-    """A module that encodes dialogues context using an MLP."""
+    """A module that encodes dialogueues context using an MLP."""
     def __init__(self, n, k, nembed, nhid, init_range, device_id):
         super(MlpContextEncoder, self).__init__(device_id)
 

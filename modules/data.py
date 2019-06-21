@@ -110,7 +110,7 @@ class Dictionary(object):
     def from_file(file_name, freq_cutoff):
         """Constructs a dictionary from the given file."""
         assert os.path.exists(file_name)
-        word_dict = Dictionary.read_tag(file_name, 'dialog', freq_cutoff=freq_cutoff)
+        word_dict = Dictionary.read_tag(file_name, 'dialogue', freq_cutoff=freq_cutoff)
         item_dict = Dictionary.read_tag(file_name, 'output', init_dict=False)
         context_dict = Dictionary.read_tag(file_name, 'input', init_dict=False)
         return word_dict, item_dict, context_dict
@@ -148,7 +148,7 @@ class WordCorpus(object):
         for line in lines:
             tokens = line.split()
             input_idxs = self.context_dict.w2i(get_tag(tokens, 'input'))
-            word_idxs = self.word_dict.w2i(get_tag(tokens, 'dialog'))
+            word_idxs = self.word_dict.w2i(get_tag(tokens, 'dialogue'))
             item_idxs = self.item_dict.w2i(get_tag(tokens, 'output'))
             dataset.append((input_idxs, word_idxs, item_idxs))
             # compute statistics
@@ -195,10 +195,10 @@ class WordCorpus(object):
                 words.append(dataset[j][1])
                 items.append(dataset[j][2])
 
-            # the longest dialog in the batch
+            # the longest dialogue in the batch
             max_len = len(words[-1])
 
-            # pad all the dialogs to match the longest dialog
+            # pad all the dialogues to match the longest dialogue
             for j in range(len(words)):
                 stats['n'] += max_len
                 stats['nonpadn'] += len(words[j])

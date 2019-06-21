@@ -29,9 +29,10 @@ class Utterance(nn.Module):
         # self.opt = optim.SGD(self.lm_model.parameters(), lr=utterance_config.lr,
         #                  momentum=utterance_config.momentum,
         #                  nesterov=(utterance_config.nesterov and utterance_config.momentum > 0))
-        self.opt = optim.Adam(self.lm_model.parameters(),
-                              lr=utterance_config.lr, betas=(0.9, 0.999),
-                              eps=1e-08, weight_decay=0, amsgrad=False)
+        # self.opt = optim.Adam(self.lm_model.parameters(),
+        #                       lr=utterance_config.lr, betas=(0.9, 0.999),
+        #                       eps=1e-08, weight_decay=0, amsgrad=False)
+        self.opt = optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
         # embedding for words
         self.word_encoder = nn.Embedding(len(dataset_dictionary.word_dict), utterance_config.nembed_word)
         # a writer, a RNNCell that will be used to generate utterances
@@ -49,11 +50,9 @@ class Utterance(nn.Module):
         # perform forward for the language model, here enter the selfplay
         if mode is None or full_sentence is not None:
             utter = full_sentence.tolist()
-            # utter = ['Hi red agent continue <eos>']*32 #TMP just for testing
             encoded_utter = [self.dataset_dictionary.word_dict.w2i(utter[i].split(" "))
                                       for i in range(len(full_sentence))]
             encoded_pad = self.dataset_dictionary.word_dict.w2i(['<pad>'])
-            # longest_sentence = len(max(encoded_utter, key=len))
             longest_sentence = DEFAULT_VOCAB_SIZE
             encoded_utter = [encoded_utter[i] + encoded_pad * (longest_sentence - len(encoded_utter[i]))
                              if len(encoded_utter[i]) < longest_sentence else encoded_utter[i]
