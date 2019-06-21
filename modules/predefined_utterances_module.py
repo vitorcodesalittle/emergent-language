@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 import re
 
+
 colors_dict = ['red', 'green', 'blue']
 shapes_dict = ['circle', 'triangle']
 start_token = 'Hi'
@@ -46,22 +47,24 @@ tokens = set([re.findall(token_regex,sentence)[i]
 class PredefinedUtterancesModule:
 
     @staticmethod
-    def generate_single_sentence(row, iter):
+    def generate_single_sentence(row, iter, one_sentence_mode):
         row = row
-        if iter == 0:
-            sentence = random.randint(0, len(goto_sentences) - 1)
-            sentence_ds = goto_sentences
-        elif row['dist'] > 3:
-            sentence = random.randint(0, len(sentence_pool) - 1)
-            sentence_ds = sentence_pool
+        if one_sentence_mode:
+            sentence = 'Hi blue agent go to green landmark <eos>'
         else:
-            sentence = random.randint(0, len(done_sentences) - 1)
-            sentence_ds = done_sentences
-
-        sentence = start_token + ' ' + sentence_ds[sentence]
-        for token in tokens:
-            sentence = sentence.replace('<' + token + '>', colors_dict[int(row[token])])
-        sentence += ' ' + end_token
+            if iter == 0:
+                sentence = random.randint(0, len(goto_sentences) - 1)
+                sentence_ds = goto_sentences
+            elif row['dist'] > 3:
+                sentence = random.randint(0, len(sentence_pool) - 1)
+                sentence_ds = sentence_pool
+            else:
+                sentence = random.randint(0, len(done_sentences) - 1)
+                sentence_ds = done_sentences
+            sentence = start_token + ' ' + sentence_ds[sentence]
+            for token in tokens:
+                sentence = sentence.replace('<' + token + '>', colors_dict[int(row[token])])
+            sentence += ' ' + end_token
         return sentence
 
     def generate_sentence(self,agent_color, agent_shape, lm_color, lm_shape, dist, iter, df_utterance, mode):
@@ -74,15 +77,19 @@ class PredefinedUtterancesModule:
             df_utterance = pd.DataFrame(data=data, dtype=np.int64)
         df_utterance['dist'] = np.around(dist.detach().numpy(),2)
         df_utterance['Full Sentence' + str(iter)] = df_utterance.apply(
-            lambda row: PredefinedUtterancesModule.generate_single_sentence(row, iter), axis=1, reduce=False )
+            lambda row: PredefinedUtterancesModule.generate_single_sentence(row, iter, self.one_sentence_mode), axis=1, reduce=False )
         return df_utterance
 
-    def generate_sentences(self, game, iter, list_df_utterance, mode = None):
+    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode, mode = None):
+        self.one_sentence_mode = one_sentence_mode
         if mode is None:
             dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
+        elif self.one_sentence_mode:
+            dist_from_goal = torch.ones(size=(game.batch_size,2,2),dtype=torch.float64)
+            dist_from_goal = dist_from_goal.new_full((game.batch_size,2,2),3.141592)
         else:
             # TODO: use configs and not hard coded dims
-            rand_agent_locations = torch.FloatTensor(np.random.uniform(low=0, high=16, size=(32,2,2)))
+            rand_agent_locations = torch.FloatTensor(np.random.uniform(low=0, high=16, size=(game.batch_size,2,2)))
             dist_from_goal = rand_agent_locations - game.sorted_goals
         euclidean_distance = torch.sqrt(torch.sum(torch.pow(dist_from_goal, 2), dim=1))
         colors = game.colors

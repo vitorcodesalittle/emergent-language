@@ -211,4 +211,4 @@ class DialogModel(modules_for_lm.CudaModule):
         # tie weights between word embedding/decoding
         decoded = F.linear(decoded, self.word_encoder.weight)
 
-        return decoded.view(out.size(0), out.size(1), decoded.size(1)), out
+        return decoded.view(out.size(0), out.size(1), decoded.size(1)) , out

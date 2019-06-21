@@ -38,6 +38,7 @@ parser.add_argument('--dir-upload-model', required=False, type=str, help='Direct
 parser.add_argument('--save-to-a-new-dir', required=False, type=bool, help='define if we want to save the info in a new dir or are we in debag mode and all of the data weill be moved to debag folder')
 parser.add_argument('--creating-data-set-mode', required=False, type=bool, help='define if we are in create dataset mode or not')
 parser.add_argument('--create-utterance-using-old-code', type=bool, help='use when we want to create dataset, or create the trained model that the dataset code willuse ')
+parser.add_argument('--one-sentence-data-set',action='store_true', default=True, help='temp, train the mini FC network on one setuation')
 
 def print_losses(epoch, losses, dists, game_config, writer):
     for a in range(game_config.min_agents, game_config.max_agents + 1):
