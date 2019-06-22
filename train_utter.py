@@ -64,9 +64,12 @@ def main():
         processed, mem = action.processed_data(physical_feat, goal, mem,
                                                    utterance_feat)
         full_sentence = df_utterance[agent_num]['Full Sentence' + str(iter)]
-        loss, utterance = utter(processed, full_sentence)
-    torch.save(utter.state_dict(), training_config.save_model_file)
-    print("Saved agent model weights at %s" % training_config.save_model_file)
+        loss, utterance, optimizer = utter(processed, full_sentence, epoch=epoch)
+        # torch.save(utter.state_dict(), training_config.save_model_file)
+        # print("Saved agent model weights at %s" % training_config.save_model_file)
+        model_state = {'epoch': epoch + 1, 'state_dict': utter.state_dict(),
+             'optimizer': optimizer.state_dict()}
+        torch.save(model_state, training_config.save_model_file)
 
 if __name__ == "__main__":
     main()

@@ -126,13 +126,12 @@ class DialogModel(modules_for_lm.CudaModule):
         processed = processed.squeeze(0)
         outs_btz = torch.LongTensor(size=[max_words,btz_total])
         lang_hs_btz = []
-
+        scores_loss = Variable(torch.FloatTensor(size=[max_words, btz_total, len(self.word_dict.idx2word)]))
         for btz in range(btz_total):
-            outs, logprobs, lang_hs = [], [], []
+            outs, logprobs, lang_hs =  [], [], []
             # remove batch dimension from the language and context hidden states
             lang_h_btz = lang_h[btz].unsqueeze(0)
             processed_btz = processed[btz].unsqueeze(0)
-
             if resume:
                 inpt = None
             else:
@@ -140,44 +139,44 @@ class DialogModel(modules_for_lm.CudaModule):
                 inpt = Variable(torch.LongTensor(1))
                 inpt.data.fill_(self.word_dict.get_idx('Hi'))
                 inpt = self.to_device(inpt)
-
             # generate words until max_words have been generated or <eos>
-            for _ in range(max_words):
+            for word_idx in range(max_words):
                 if inpt is not None:
                     # add the context to the word embedding
                     inpt_emb = torch.cat([self.word_encoder(inpt), processed_btz], 1)
                     # update RNN state with last word
                     lang_h_btz = self.writer(inpt_emb, lang_h_btz)
                     lang_hs.append(lang_h_btz)
-
                 # decode words using the inverse of the word embedding matrix
+
                 out = self.decoder(lang_h_btz)
                 scores = F.linear(out, self.word_encoder.weight).div(temperature)
                 # subtract constant to avoid overflows in exponentiation
                 scores = scores.add(-scores.max().item()).squeeze(0)
-
                 # disable special tokens from being generated in a normal turns
                 if not resume:
                     mask = Variable(self.special_token_mask)
                     scores = scores.add(mask)
-
                 prob = F.softmax(scores,dim=0)
                 logprob = F.log_softmax(scores,dim=0)
 
                 # explicitly defining num_samples for pytorch 0.4.1
+
                 word = prob.multinomial(num_samples=1).detach()
                 # logprob = logprob.gather(0, word)
 
                 # logprobs.append(logprob)
+
                 outs.append(word.view(word.size()[0], 1))
+                scores_loss[word_idx,btz] = Variable(scores)
 
                 # check if we generated an <eos> token
-                if self.word_dict.get_word(word.data[0]) in stop_tokens:
-                    break
-
+                # if self.word_dict.get_word(word.data[0]) in stop_tokens:
+                #     break
             # update the hidden state with the <eos> token
             inpt_emb = torch.cat([self.word_encoder(inpt), processed_btz], 1)
             lang_h_btz = self.writer(inpt_emb, lang_h_btz)
+
             lang_hs.append(lang_h_btz)
 
             # add batch dimension back
@@ -189,7 +188,7 @@ class DialogModel(modules_for_lm.CudaModule):
             outs_btz[:,btz] = torch.cat(outs).squeeze(1)
             lang_h[btz]= lang_h_btz
             lang_hs_btz += [torch.cat(lang_hs)]
-        return outs_btz, lang_h, lang_hs_btz
+        return outs_btz, lang_h, lang_hs_btz,scores_loss
 
     def forward_lm(self, inpt, lang_h, ctx_h):
         """Run forward pass for language modeling."""

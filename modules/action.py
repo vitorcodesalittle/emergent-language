@@ -30,7 +30,19 @@ class ActionModule(nn.Module):
                 nn.Linear(config.action_processor.hidden_size, config.movement_dim_size),
                 nn.Tanh())
         if self.using_utterances:
-            self.utter = Utterance(config, utterance_config, dataset_dictionary,use_old_utterance_code)
+            self.utter = Utterance(config, utterance_config, dataset_dictionary, use_old_utterance_code)
+
+        if utterance_config.fb_dir != "":
+            folder_dir_fb_model = utterance_config.fb_dir
+            fb_model = torch.load(folder_dir_fb_model)
+            self.utter.load_state_dict(fb_model['state_dict'])
+            # self.opt.load_state_dict(fb_model['optimizer'])
+            # self.utter.eval()
+            # self.opt =  optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
+            # Explicitly activate training_mode to avoid runtime error with pytorch > 0.4.0
+            self.utter.train()
+        else:
+            pass
 
 
     def processed_data(self, physical, goal, mem, utterance_feat=None):
@@ -54,6 +66,7 @@ class ActionModule(nn.Module):
                 utter = self.utter.create_utterance_using_old_code(training, processed)
             else:
                 total_loss, utter = self.utter(processed, full_sentence, total_loss, "fine tune")
+
         else:
             utter = None
         final_movement = (movement * 2 * self.movement_step_size) - self.movement_step_size
