@@ -56,6 +56,6 @@ def generate_sentence(agent_color, agent_shape, lm_color, lm_shape):
 # input+="</input>"
 # first_turn = random.randint(1, 2)
 # second_turn = 3 - first_turn
-# dialogue = "<dialogue> AGENT_"+first_turn+": "
-# dialogue+=
+# dialog = "<dialog> AGENT_"+first_turn+": "
+# dialog+=
 
