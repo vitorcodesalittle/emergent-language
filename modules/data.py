@@ -119,13 +119,13 @@ class Dictionary(object):
 class WordCorpus(object):
     """An utility that stores the entire dataset.
 
-    It has the train.txt, valid and test.txt datasets and corresponding dictionaries.
+    It has the train, valid and test datasets and corresponding dictionaries.
     """
 
     def __init__(self, path, freq_cutoff=2, train='dataset_train.txt',
         valid='dataset_val.txt', test='dataset_test.txt', verbose=False):
         self.verbose = verbose
-        # only add words from the train.txt dataset
+        # only add words from the train dataset
         self.word_dict, self.item_dict, self.context_dict = Dictionary.from_file(
             os.path.join(path, train),
             freq_cutoff=freq_cutoff)
@@ -135,7 +135,7 @@ class WordCorpus(object):
         self.valid = self.tokenize(os.path.join(path, valid)) if valid else []
         self.test = self.tokenize(os.path.join(path, test)) if test else []
 
-        # find out the output length from the train.txt dataset
+        # find out the output length from the train dataset
         self.output_length = max([len(x[2]) for x in self.train])
 
     def tokenize(self, file_name):
