@@ -195,10 +195,10 @@ class WordCorpus(object):
                 words.append(dataset[j][1])
                 items.append(dataset[j][2])
 
-            # the longest dialog in the batch
+            # the longest dialogue in the batch
             max_len = len(words[-1])
 
-            # pad all the dialogs to match the longest dialog
+            # pad all the dialogues to match the longest dialogue
             for j in range(len(words)):
                 stats['n'] += max_len
                 stats['nonpadn'] += len(words[j])

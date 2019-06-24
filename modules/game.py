@@ -191,7 +191,7 @@ class GameModule(nn.Module):
     Computes the total cost agents get from moving
     """
     def compute_movement_cost(self, movements):
-        return torch.sum(torch.sqrt(torch.sum(torch.pow(movements, 2), -1)))
+        return torch.sum(torch.sqrt(torch.sum(torch.pow(movements[:,:self.num_agents,:], 2), -1)))
 
 
         #dist, dist_per_agent = game.get_avg_agent_to_goal_distance() #add to tensorboard

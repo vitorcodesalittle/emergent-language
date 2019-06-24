@@ -5,15 +5,8 @@ from pathlib import Path
 import time
 import constants
 from modules import data
-from typing import NamedTuple, Any
 
-import os
-from pathlib import Path
-import time
-import constants
-from modules import data
-
-DEFAULT_BATCH_SIZE = 16 ### 32
+DEFAULT_BATCH_SIZE = 16
 DEFAULT_NUM_EPOCHS = 1000
 DEFAULT_LR = 5e-4
 SAVE_MODEL = True
@@ -26,10 +19,11 @@ DEFAULT_TIME_HORIZON = 16
 
 USE_UTTERANCES = False
 PENALIZE_WORDS = True
-DEFAULT_VOCAB_SIZE = 9 #10
+DEFAULT_VOCAB_SIZE = 10
 DEFAULT_OOV_PROB = 1
 DEFAULT_DF_UTTERANCE_COL_NAME = ['agent_color', 'agent_shape', 'lm_color', 'lm_shape', 'sentence']
-
+DEFAULT_FB_DIR = r"C:\Users\Doron\Desktop\emergent-language\0130-22062019\modules_weights.pt"
+# DEFAULT_FB_DIR = ""
 DEFAULT_WORLD_DIM = 16
 MAX_AGENTS = 2 #TODO: add to readme
 MAX_LANDMARKS = 3
@@ -41,19 +35,19 @@ NUM_SHAPES = 2
 DEFAULT_UPLOAD_TRAINED_MODEL = False
 DEFAULT_DIR_UPLOAD_MODEL = ""
 DEFAULT_SAVE_TO_A_NEW_DIR = False
-DEFAULT_CREATING_DATASET_MODE = False
+DEFAULT_CREATING_DATASET_MODE = True
 DEFAULT_FOLDER_DIR = str(Path(os.getcwd())) + os.sep + 'debag' + os.sep
 DEFAULT_CORPUS = None
 DEFAULT_USE_OLD_UTTERANCE_CODE = False
 
 
 DEFAULT_INIT_RANGE = 0.1
-DEFAULT_NHID_LANG = 128 #256
+DEFAULT_NHID_LANG = 256
 DEFAULT_NEMBED_WORDS = 256
-DEFAULT_NHID_CTX = 64 #256
-DEFAULT_DROPOUT = 0.5
+DEFAULT_NHID_CTX = 256
+DEFAULT_DROPOUT = 0
 DEFAULT_MOMENTUM = 0.1
-DEFAULT_LR = 0.1
+DEFAULT_LR = 0.00005
 DEFAULT_NESTEROV = False
 DEFAULT_CLIP = 0.5
 DEFAULT_TEMPERATURE = 0.5
@@ -70,6 +64,7 @@ UtteranceConfig = NamedTuple('UtteranceConfig', [
     ('clip', float),
     ('batch_size', int),
     ('temperature', float),
+    ('fb_dir', str),
 ])
 
 
@@ -255,7 +250,8 @@ default_utterance_config = UtteranceConfig(
         nesterov=DEFAULT_NESTEROV,
         clip=DEFAULT_CLIP,
         batch_size=default_game_config.batch_size,
-        temperature=DEFAULT_TEMPERATURE)
+        temperature=DEFAULT_TEMPERATURE,
+        fb_dir=DEFAULT_FB_DIR)
 
 
 def get_utterance_config():
@@ -270,7 +266,9 @@ def get_utterance_config():
         nesterov=default_utterance_config.nesterov,
         clip=default_utterance_config.clip,
         batch_size=default_game_config.batch_size,
-        temperature=default_utterance_config.temperature)
+        temperature=default_utterance_config.temperature,
+        fb_dir=default_utterance_config.fb_dir)
+        #todo we should use below data so we can change it using parmaters
         # init_range=kwargs['init_range'] or default_utterance_config.init_range,
         # nhid_lang=kwargs['nhid_lang'] or default_utterance_config.nhid_lang,
         # nembed_word=kwargs['nembed_word'] or default_utterance_config.nembed_word,
