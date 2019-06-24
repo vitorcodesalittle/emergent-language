@@ -31,18 +31,18 @@ class ActionModule(nn.Module):
                 nn.Tanh())
         if self.using_utterances:
             self.utter = Utterance(config, utterance_config, dataset_dictionary, use_old_utterance_code)
-
-        if utterance_config.fb_dir != "":
-            folder_dir_fb_model = utterance_config.fb_dir
-            fb_model = torch.load(folder_dir_fb_model)
-            self.utter.load_state_dict(fb_model['state_dict'])
-            # self.opt.load_state_dict(fb_model['optimizer'])
-            # self.utter.eval()
-            # self.opt =  optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
-            # Explicitly activate training_mode to avoid runtime error with pytorch > 0.4.0
-            self.utter.train()
-        else:
-            pass
+        #
+        # if utterance_config.fb_dir != "":
+        #     folder_dir_fb_model = utterance_config.fb_dir
+        #     fb_model = torch.load(folder_dir_fb_model)
+        #     self.utter.load_state_dict(fb_model['state_dict'])
+        #     # self.opt.load_state_dict(fb_model['optimizer'])
+        #     # self.utter.eval()
+        #     # self.opt =  optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
+        #     # Explicitly activate training_mode to avoid runtime error with pytorch > 0.4.0
+        #     self.utter.train()
+        # else:
+        #     pass
 
 
     def processed_data(self, physical, goal, mem, utterance_feat=None):

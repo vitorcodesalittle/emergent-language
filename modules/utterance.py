@@ -82,15 +82,15 @@ class Utterance(nn.Module):
             self.lang_hs = []
             self.write(self.lang_h ,processed.unsqueeze(0)) #undecoded utter, to decode it use: self._decode(utter, self.lm_model.word_dict)
 
-        utter_print = self.lm_model.word_dict.i2w(self.words[1].data.cpu()) + [str(self.total_loss)]
+        utter_print = self.lm_model.word_dict.i2w(self.words[1].data.cpu()) # [str(self.total_loss)]
         utter_print = ' '.join(utter_print)
         if mode is None:
             with open("utterance_out_fb.csv", 'a', newline='') as f:
                 f.write(utter_print)
                 f.write('\n')
-            if epoch == 700:
+            if epoch == 100:
                 for param_group in self.opt.param_groups:
-                    param_group['lr'] = 0.00000001
+                    param_group['lr'] = 0.000001
                     print(param_group['lr'])
             self.opt.zero_grad()
             # backward step with gradient clipping, use retain_graph=True
