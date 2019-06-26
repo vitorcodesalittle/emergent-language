@@ -6,6 +6,9 @@ import time
 import constants
 from modules import data
 
+'selfplay/train_em/train_utter'
+DEFAULT_MODE = 'train_em'
+
 DEFAULT_BATCH_SIZE = 16
 DEFAULT_NUM_EPOCHS = 1000
 DEFAULT_LR = 5e-4
@@ -22,8 +25,8 @@ PENALIZE_WORDS = True
 DEFAULT_VOCAB_SIZE = 10
 DEFAULT_OOV_PROB = 1
 DEFAULT_DF_UTTERANCE_COL_NAME = ['agent_color', 'agent_shape', 'lm_color', 'lm_shape', 'sentence']
-# DEFAULT_FB_DIR = r"C:\Users\Doron\Desktop\emergent-language\0130-22062019\modules_weights.pt"
-DEFAULT_FB_DIR = ""
+DEFAULT_FB_DIR = r"C:\Users\Doron\Desktop\emergent-language\debag\modules_weights.pt"
+# DEFAULT_FB_DIR = ""
 DEFAULT_WORLD_DIM = 16
 MAX_AGENTS = 2 #TODO: add to readme
 MAX_LANDMARKS = 3
@@ -53,6 +56,7 @@ DEFAULT_CLIP = 0.5
 DEFAULT_TEMPERATURE = 0.5
 
 UtteranceConfig = NamedTuple('UtteranceConfig', [
+    ('folder_dir', str),
     ('init_range', float),
     ('nhid_lang', int),
     ('nembed_word', int),
@@ -116,6 +120,7 @@ GoalPredictingProcessingModuleConfig = NamedTuple("GoalPredictingProcessingModul
     ])
 
 ActionModuleConfig = NamedTuple("ActionModuleConfig", [
+    ('mode', str),
     ('goal_processor', ProcessingModuleConfig),
     ('action_processor', ProcessingModuleConfig),
     ('hidden_size', int),
@@ -208,6 +213,7 @@ def get_processor_config_with_input_size(input_size):
 
 
 default_action_module_config = ActionModuleConfig(
+        mode=DEFAULT_MODE,
         goal_processor=get_processor_config_with_input_size(constants.GOAL_SIZE),
         action_processor=get_processor_config_with_input_size(feat_size),
         hidden_size=DEFAULT_HIDDEN_SIZE,
@@ -240,6 +246,7 @@ default_agent_config = AgentModuleConfig(
         df_utterance_col_name = DEFAULT_DF_UTTERANCE_COL_NAME)
 
 default_utterance_config = UtteranceConfig(
+        folder_dir=DEFAULT_FOLDER_DIR,
         init_range=DEFAULT_INIT_RANGE,
         nhid_lang=DEFAULT_NHID_LANG,
         nembed_word=DEFAULT_NEMBED_WORDS,
@@ -256,6 +263,7 @@ default_utterance_config = UtteranceConfig(
 
 def get_utterance_config():
     return UtteranceConfig(
+        folder_dir=default_utterance_config.folder_dir,
         init_range=default_utterance_config.init_range,
         nhid_lang=default_utterance_config.nhid_lang,
         nembed_word=default_utterance_config.nembed_word,
@@ -329,6 +337,7 @@ def get_agent_config(kwargs):
             dropout=DEFAULT_DROPOUT,
             goal_size=constants.GOAL_SIZE)
     action_processor = ActionModuleConfig(
+            mode=kwargs['mode'] or DEFAULT_MODE,
             goal_processor=get_processor_config_with_input_size(constants.GOAL_SIZE),
             action_processor=get_processor_config_with_input_size(feat_vec_size),
             hidden_size=DEFAULT_HIDDEN_SIZE,

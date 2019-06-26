@@ -16,8 +16,10 @@ from modules.utterance import Utterance
     is then fed into two independent fully connected networks to output
     utterance and movement actions
 """
+
+
 class ActionModule(nn.Module):
-    def __init__(self, config, utterance_config, dataset_dictionary,use_old_utterance_code):
+    def __init__(self, config, utterance_config, dataset_dictionary, use_old_utterance_code):
         super(ActionModule, self).__init__()
         self.using_utterances = config.use_utterances
         self.using_cuda = config.use_cuda
@@ -32,18 +34,10 @@ class ActionModule(nn.Module):
         if self.using_utterances:
             self.utter = Utterance(config, utterance_config, dataset_dictionary, use_old_utterance_code)
         #
-        # if utterance_config.fb_dir != "":
-        #     folder_dir_fb_model = utterance_config.fb_dir
-        #     fb_model = torch.load(folder_dir_fb_model)
-        #     self.utter.load_state_dict(fb_model['state_dict'])
-        #     # self.opt.load_state_dict(fb_model['optimizer'])
-        #     # self.utter.eval()
-        #     # self.opt =  optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
-        #     # Explicitly activate training_mode to avoid runtime error with pytorch > 0.4.0
-        #     self.utter.train()
-        # else:
-        #     pass
-
+        if not config.mode == "train_utter":
+            folder_dir_fb_model = utterance_config.fb_dir
+            with open(folder_dir_fb_model, 'rb') as f:
+                self.utter.load_state_dict(torch.load(f))
 
     def processed_data(self, physical, goal, mem, utterance_feat=None):
         goal_processed, _ = self.goal_processor(goal, mem)
@@ -56,16 +50,14 @@ class ActionModule(nn.Module):
         processed, mem = self.processor(x, mem)
         return processed, mem
 
-
-
-    def forward(self, physical, goal, mem, training, use_old_utterance_code,full_sentence, total_loss, utterance_feat=None ):
+    def forward(self, physical, goal, mem, training, use_old_utterance_code, full_sentence, total_loss, utterance_feat=None ):
         processed, mem = self.processed_data(physical, goal, mem, utterance_feat) #what is the goal in this point
         movement = self.movement_chooser(processed)
         if self.using_utterances:
             if use_old_utterance_code:
                 utter = self.utter.create_utterance_using_old_code(training, processed)
             else:
-                total_loss, utter = self.utter(processed, full_sentence, total_loss, "fine tune")
+                total_loss, utter = self.utter(processed, full_sentence, total_loss)
 
         else:
             utter = None

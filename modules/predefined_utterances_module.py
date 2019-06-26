@@ -50,8 +50,8 @@ class PredefinedUtterancesModule:
     def generate_single_sentence(row, iter, one_sentence_mode):
         row = row
         if one_sentence_mode:
-            sentence_list = ['Hi blue agent go to green landmark <eos>'
-                , 'Hi red agent go to green landmark <eos>','Hi blue agent continue <eos> ']
+            sentence_list = ['Hi blue agent go to green landmark <eos>']
+                # , 'Hi red agent go to green landmark <eos>','Hi blue agent continue <eos> ']
             sentence =random.choice(sentence_list)
             # sentence = 'Hi blue agent go to green landmark <eos>'
         else:
@@ -86,9 +86,9 @@ class PredefinedUtterancesModule:
             lambda row: PredefinedUtterancesModule.generate_single_sentence(row, iter, self.one_sentence_mode), axis=1, reduce=False )
         return df_utterance
 
-    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode=False, mode = None):
+    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode=False, mode=None):
         self.one_sentence_mode = one_sentence_mode
-        if mode is None:
+        if mode is "train_em":
             dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
         elif self.one_sentence_mode:
             dist_from_goal = torch.ones(size=(game.batch_size,2,2),dtype=torch.float64)

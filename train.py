@@ -38,8 +38,10 @@ parser.add_argument('--dir-upload-model', required=False, type=str, help='Direct
 parser.add_argument('--save-to-a-new-dir', required=False, type=bool, help='define if we want to save the info in a new dir or are we in debag mode and all of the data weill be moved to debag folder')
 parser.add_argument('--creating-data-set-mode', required=False, type=bool, help='define if we are in create dataset mode or not')
 parser.add_argument('--create-utterance-using-old-code', type=bool, help='use when we want to create dataset, or create the trained model that the dataset code willuse ')
-parser.add_argument('--one-sentence-data-set',action='store_true', default=True, help='temp, train the mini FC network on one setuation')
+parser.add_argument('--one-sentence-data-set', action='store_true', default=False, help='temp, train the mini FC network on one setuation')
 parser.add_argument('--fb-dir', required=False, type=str, help='if specified FB will be fine tuned ussing the reward loss, the fb model weight will be taken from the specifed dir')
+parser.add_argument('--mode', required=False, type=str, help='selfplay/train_em/train_utter')
+
 
 def print_losses(epoch, losses, dists, game_config, writer):
     for a in range(game_config.min_agents, game_config.max_agents + 1):
@@ -60,7 +62,7 @@ def main():
     run_config = configs.get_run_config(args)
     agent_config = configs.get_agent_config(args)
     game_config = configs.get_game_config(args)
-    training_config = configs.get_training_config(args,run_config.folder_dir)
+    training_config = configs.get_training_config(args, run_config.folder_dir)
     utterance_config = configs.get_utterance_config()
     print("Training with config:")
     print(training_config)
