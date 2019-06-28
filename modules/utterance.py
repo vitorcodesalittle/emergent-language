@@ -127,11 +127,11 @@ class Utterance(nn.Module):
         self.lang_h = lang_h
         outs, self.lang_h, lang_hs,scores = self.lm_model.write(self.lang_h, processed, DEFAULT_VOCAB_SIZE-1 ,
                                                                self.config.temperature)
-        if self.step == 0:
-            self.total_loss = self.crit(scores.view(-1, len(self.dataset_dictionary.word_dict.idx2word)), self.tgt)
-            # print(id(scores))
-        else:
-            self.total_loss += self.crit(scores.view(-1, len(self.dataset_dictionary.word_dict.idx2word)), self.tgt)
+        # if self.step == 0:
+        #     self.total_loss = self.crit(scores.view(-1, len(self.dataset_dictionary.word_dict.idx2word)), self.tgt)
+        #     # print(id(scores))
+        # else:
+        #     self.total_loss += self.crit(scores.view(-1, len(self.dataset_dictionary.word_dict.idx2word)), self.tgt)
             # print(id(scores))
         outs = torch.transpose(outs,0,1)
         self.lang_hs.append(lang_hs)

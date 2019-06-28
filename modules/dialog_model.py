@@ -120,25 +120,19 @@ class DialogModel(modules_for_lm.CudaModule):
         """Generate a sentence word by word and feed the output of the
         previous timestep as input to the next.
         """
-        lang_h = lang_h[:,1,:]
-        processed = processed[:,1,:]
         encoded_pad = self.word_dict.w2i(['<pad>'])
-        # btz_total = lang_h.size()[1]
-        btz_total = 1
         # lang_h = lang_h.squeeze(0)
         # processed = processed.squeeze(0)
-        outs_btz = torch.LongTensor(size=[max_words,btz_total])
-        # lang_hs_btz = []
-        scores_loss = Variable(torch.FloatTensor(size=[max_words, btz_total, len(self.word_dict.idx2word)]))
-        for btz in range(btz_total):
+        btz_size = lang_h.size()[1]
+        outs_btz = torch.LongTensor(size=[max_words,btz_size])
+        # scores_loss = Variable(torch.FloatTensor(size=[max_words, btz_total, len(self.word_dict.idx2word)]))
+        for btz in range(btz_size):
+            processed_btz = processed[:,btz,:]
             outs, logprobs, lang_hs = [], [], []
             # remove batch dimension from the language and context hidden states
-            # lang_h_btz = lang_h[btz].unsqueeze(0)
-            # processed_btz = processed[btz].unsqueeze(0)
             if resume:
                 inpt = None
             else:
-                # if we start a new sentence, prepend it with 'Hi'
                 inpt = Variable(torch.LongTensor(1))
                 inpt.data.fill_(self.word_dict.get_idx('Hi'))
                 inpt = self.to_device(inpt)
@@ -146,13 +140,13 @@ class DialogModel(modules_for_lm.CudaModule):
             for word_idx in range(max_words):
                 if inpt is not None:
                     # add the context to the word embedding
-                    inpt_emb = torch.cat([self.word_encoder(inpt), processed], 1)
+                    inpt_emb = torch.cat([self.word_encoder(inpt), processed_btz], 1)
                     # update RNN state with last word
-                    lang_h = self.writer(inpt_emb, lang_h)
-                    lang_hs.append(lang_h)
+                    lang_h[:, btz, :] = self.writer(inpt_emb, lang_h[:, btz, :])
+                    lang_hs.append(lang_h[:, btz, :])
                 # decode words using the inverse of the word embedding matrix
 
-                out = self.decoder(lang_h)
+                out = self.decoder(lang_h[:, btz, :])
                 scores = F.linear(out, self.word_encoder.weight).div(temperature)
                 # subtract constant to avoid overflows in exponentiation
                 scores = scores.add(-scores.max().item()).squeeze(0)
@@ -172,26 +166,26 @@ class DialogModel(modules_for_lm.CudaModule):
 
                 outs.append(word.view(word.size()[0], 1))
                 inpt = word
-                scores_loss[word_idx, btz] = Variable(scores)
+                # scores_loss[word_idx, btz] = Variable(scores)
 
                 # check if we generated an <eos> token
                 if self.word_dict.get_word(word.data[0]) in stop_tokens:
                     break
             # update the hidden state with the <eos> token
-            inpt_emb = torch.cat([self.word_encoder(inpt), processed], 1)
-            lang_h = self.writer(inpt_emb, lang_h)
-            lang_hs.append(lang_h)
+            inpt_emb = torch.cat([self.word_encoder(inpt), processed_btz], 1)
+            lang_h[:, btz, :] = self.writer(inpt_emb, lang_h[:, btz, :])
+            lang_hs.append(lang_h[:, btz, :])
 
             # add batch dimension back
-            lang_h = lang_h.unsqueeze(1)
+            # lang_h = lang_h.unsqueeze(1)
             if len(outs)<max_words:
                 outs = [outs[i].item() for i in range(len(outs))]
                 outs = outs + encoded_pad * (max_words - len(outs))
                 outs = [torch.LongTensor([[i]]) for i in outs]
             outs_btz[:,btz] = torch.cat(outs).squeeze(1)
-            lang_h[btz]= lang_h
             lang_hs += [torch.cat(lang_hs)]
-        return outs_btz, lang_h, lang_hs, scores_loss
+            loss = 0
+        return outs_btz, lang_h, lang_hs, loss
 
     def forward_lm(self, inpt, lang_h, ctx_h):
         """Run forward pass for language modeling."""
