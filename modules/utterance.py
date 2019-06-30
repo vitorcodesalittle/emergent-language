@@ -34,7 +34,7 @@ class Utterance(nn.Module):
         self.lm_model = DialogModel(dataset_dictionary.word_dict, None,
                                     None, 4,
                                     utterance_config,
-                                    None)
+                                    None, self.action_processor_config.mode)
         if not self.action_processor_config.mode == 'train_utter':
             with open(utterance_config.folder_dir+'lm_model.pt', 'rb') as f:
                 self.lm_model.load_state_dict(torch.load(f))
@@ -42,10 +42,10 @@ class Utterance(nn.Module):
 
         self.opt = optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
         self.config = utterance_config
+        # self.loss = torch.zeros(size=(1,))
 
     def forward(self, processed, full_sentence, step=None, epoch=None):
-        self.total_loss = 0
-        self.step = step
+        self.loss = torch.zeros(size=(1,))
         self.words = torch.LongTensor(size=[self.config.batch_size, DEFAULT_VOCAB_SIZE])
         self.lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.config.nhid_lang)
         utter = full_sentence.tolist()
@@ -107,7 +107,7 @@ class Utterance(nn.Module):
             self.opt.zero_grad()
             # print(self.total_loss)
             # print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
-            return self.total_loss, self.words, None
+            return self.loss, self.words
 
     def create_utterance_using_old_code(self, training, processed):
         utter = self.utterance_chooser(processed)
@@ -125,8 +125,8 @@ class Utterance(nn.Module):
     def write(self, lang_h, processed):
         # generate a new utterance #todo Start HERE!
         self.lang_h = lang_h
-        outs, self.lang_h, lang_hs,scores = self.lm_model.write(self.lang_h, processed, DEFAULT_VOCAB_SIZE-1 ,
-                                                               self.config.temperature)
+        outs, self.lang_h, lang_hs, self.loss = self.lm_model.write(self.lang_h, processed, DEFAULT_VOCAB_SIZE-1 ,
+                                                               self.config.temperature, self.loss, self.tgt)
         # if self.step == 0:
         #     self.total_loss = self.crit(scores.view(-1, len(self.dataset_dictionary.word_dict.idx2word)), self.tgt)
         #     # print(id(scores))

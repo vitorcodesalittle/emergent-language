@@ -15,15 +15,17 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
 from modules import modules_for_lm
+from modules.modules_for_lm import Criterion
+
 
 
 class DialogModel(modules_for_lm.CudaModule):
-    def __init__(self, word_dict, item_dict, context_dict, output_length, config, device_id):
+    def __init__(self, word_dict, item_dict, context_dict, output_length, config, device_id, mode):
         super(DialogModel, self).__init__(device_id)
 
         self.word_dict = word_dict
         self.config = config
-
+        self.mode = mode
         # embedding for words
         self.word_encoder = nn.Embedding(len(self.word_dict), config.nembed_word)
 
@@ -60,6 +62,8 @@ class DialogModel(modules_for_lm.CudaModule):
             self.special_token_mask[i] = -999 if special else 0.0
 
         self.special_token_mask = self.to_device(self.special_token_mask)
+        self.crit = Criterion(self.word_dict, device_id=None)
+
 
     def set_device_id(self, device_id):
         self.device_id = device_id
@@ -115,18 +119,18 @@ class DialogModel(modules_for_lm.CudaModule):
     ]
 
     # this is the LSTM network, will be also used in the selfplay mode or in our case in the "fine tune"
-    def write(self, lang_h, processed, max_words, temperature,
+
+    def write(self, lang_h, processed, max_words, temperature, loss, tgt,
             stop_tokens=STOP_TOKENS, resume=False):
         """Generate a sentence word by word and feed the output of the
         previous timestep as input to the next.
         """
         encoded_pad = self.word_dict.w2i(['<pad>'])
-        # lang_h = lang_h.squeeze(0)
-        # processed = processed.squeeze(0)
         btz_size = lang_h.size()[1]
         outs_btz = torch.LongTensor(size=[max_words,btz_size])
         # scores_loss = Variable(torch.FloatTensor(size=[max_words, btz_total, len(self.word_dict.idx2word)]))
         for btz in range(btz_size):
+            tgt_btz = torch.LongTensor([tgt[i] for i in range(btz,tgt.shape[0],btz_size)])
             processed_btz = processed[:,btz,:]
             outs, logprobs, lang_hs = [], [], []
             # remove batch dimension from the language and context hidden states
@@ -147,9 +151,9 @@ class DialogModel(modules_for_lm.CudaModule):
                 # decode words using the inverse of the word embedding matrix
 
                 out = self.decoder(lang_h[:, btz, :])
-                scores = F.linear(out, self.word_encoder.weight).div(temperature)
+                scores = Variable(F.linear(out, self.word_encoder.weight).div(temperature))
                 # subtract constant to avoid overflows in exponentiation
-                scores = scores.add(-scores.max().item()).squeeze(0)
+                scores = Variable(scores.add(-scores.max().item()).squeeze(0))
                 # disable special tokens from being generated in a normal turns
                 if not resume:
                     mask = Variable(self.special_token_mask)
@@ -158,14 +162,17 @@ class DialogModel(modules_for_lm.CudaModule):
                 logprob = F.log_softmax(scores,dim=0)
 
                 # explicitly defining num_samples for pytorch 0.4.1
-
                 word = prob.multinomial(num_samples=1).detach()
                 # logprob = logprob.gather(0, word)
 
                 # logprobs.append(logprob)
 
                 outs.append(word.view(word.size()[0], 1))
-                inpt = word
+                if self.mode == 'train_em':
+                    loss += self.crit(scores.view(-1, len(self.word_dict)), tgt_btz[word_idx].unsqueeze(0))
+                    inpt = tgt_btz[word_idx].unsqueeze(0)
+                else:
+                    inpt = word
                 # scores_loss[word_idx, btz] = Variable(scores)
 
                 # check if we generated an <eos> token
@@ -184,7 +191,6 @@ class DialogModel(modules_for_lm.CudaModule):
                 outs = [torch.LongTensor([[i]]) for i in outs]
             outs_btz[:,btz] = torch.cat(outs).squeeze(1)
             lang_hs += [torch.cat(lang_hs)]
-            loss = 0
         return outs_btz, lang_h, lang_hs, loss
 
     def forward_lm(self, inpt, lang_h, ctx_h):
