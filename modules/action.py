@@ -57,10 +57,10 @@ class ActionModule(nn.Module):
             if use_old_utterance_code:
                 utter = self.utter.create_utterance_using_old_code(training, processed)
             else:
-                total_loss, utter = self.utter(processed, full_sentence, total_loss)
+                total_loss, utter, utter_super = self.utter(processed, full_sentence, total_loss)
 
         else:
             utter = None
         final_movement = (movement * 2 * self.movement_step_size) - self.movement_step_size
-        return final_movement, utter, mem, total_loss
+        return final_movement, utter, mem, total_loss, utter_super
 

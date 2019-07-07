@@ -50,7 +50,9 @@ class PredefinedUtterancesModule:
     def generate_single_sentence(row, iter, one_sentence_mode):
         row = row
         if one_sentence_mode:
-            sentence_list = ['Hi blue agent go to green landmark <eos>']
+            sentence_list = ['Hi ' + colors_dict[int(row['agent_color'])] + ' agent go to ' +
+                             colors_dict[int(row['lm_color'])] + ' landmark <eos>' ]
+            # sentence_list = ['Hi blue agent go to green landmark <eos>']
                 # , 'Hi red agent go to green landmark <eos>','Hi blue agent continue <eos> ']
             sentence =random.choice(sentence_list)
             # sentence = 'Hi blue agent go to green landmark <eos>'
@@ -74,7 +76,7 @@ class PredefinedUtterancesModule:
         return sentence
 
     def generate_sentence(self,agent_color, agent_shape, lm_color, lm_shape, dist, iter, df_utterance, mode):
-        if iter == 0 or mode is not None:
+        if iter == 0 or mode =='selfplay':
             data = {'agent_color': torch.Tensor.numpy(agent_color)[:, 0],
                     'agent_shape': torch.Tensor.numpy(agent_shape)[:, 0],
                     'lm_color': torch.Tensor.numpy(lm_color)[:, 0],
@@ -86,9 +88,9 @@ class PredefinedUtterancesModule:
             lambda row: PredefinedUtterancesModule.generate_single_sentence(row, iter, self.one_sentence_mode), axis=1, reduce=False )
         return df_utterance
 
-    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode=False, mode=None):
+    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode=False, mode=None): #Todo False
         self.one_sentence_mode = one_sentence_mode
-        if mode is "train_em":
+        if mode == "train_em":
             dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
         elif self.one_sentence_mode:
             dist_from_goal = torch.ones(size=(game.batch_size,2,2),dtype=torch.float64)
@@ -100,10 +102,16 @@ class PredefinedUtterancesModule:
         euclidean_distance = torch.sqrt(torch.sum(torch.pow(dist_from_goal, 2), dim=1))
         colors = game.colors
         shapes = game.shapes
-        list_df_utterance = [self.generate_sentence(
-            colors[:, i], shapes[:, i], colors[:, game.goal_entities[:,i,:][0][0]],
-            shapes[:, game.goal_entities[:,i,:][0][0]], euclidean_distance[:,i], iter, list_df_utterance[i], mode)
-            for i in range(game.num_agents)]
+        for i in range(game.num_agents):
+            colors_lm = torch.FloatTensor([colors[btz,game.goal_entities[btz,i]] for btz in range(game.batch_size)]).unsqueeze(1)
+            shape_lm = torch.FloatTensor([shapes[btz,game.goal_entities[btz,i]] for btz in range(game.batch_size)]).unsqueeze(1)
+            list_df_utterance[i] = self.generate_sentence(
+                colors[:, i], shapes[:, i], colors_lm,
+                shape_lm, euclidean_distance[:,i], iter, list_df_utterance[i], mode)
+        # list_df_utterance = [self.generate_sentence(
+        #     colors[:, i], shapes[:, i], colors[:, game.goal_entities[:,i,:].squeeze(1),:],
+        #     shapes[:, game.goal_entities[:,i,:].squeeze(1),:], euclidean_distance[:,i], iter, list_df_utterance[i], mode)
+        #     for i in range(game.num_agents)]
         return list_df_utterance
 
     def generate_dataset_txt_file(self,btz,df_utterance, df_utterance_col_name):

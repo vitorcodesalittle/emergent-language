@@ -49,6 +49,7 @@ class AgentModule(nn.Module):
         self.processing_hidden_size = config.physical_processor.hidden_size
         self.Tensor = torch.cuda.FloatTensor if self.using_cuda else torch.FloatTensor
         self.df_utterance_col_name = config.df_utterance_col_name
+        self.mode = config.action_processor.mode
 
     def reset(self):
         self.total_cost = torch.zeros_like(self.total_cost)
@@ -94,8 +95,8 @@ class AgentModule(nn.Module):
         else:
             return None
 
-    def get_action(self, game, agent, physical_feat, utterance_feat, movements, utterances, full_sentence=None):
-        movement, utterance, new_mem, self.total_loss = self.action_processor(physical_feat, game.observed_goals[:,agent],
+    def get_action(self, game, agent, physical_feat, utterance_feat, movements, utterances, full_sentence=None, utterances_super = None):
+        movement, utterance, new_mem, self.total_loss, utter_super = self.action_processor(physical_feat, game.observed_goals[:,agent],
                                                              game.memories["action"][:,agent], self.training,
                                                              self.use_old_utterance_code, full_sentence, self.total_loss,
                                                              utterance_feat)
@@ -103,6 +104,7 @@ class AgentModule(nn.Module):
         movements[:,agent,:] = movement
         if self.using_utterances:
             utterances[:,agent,:] = utterance
+            utterances_super[:,agent,:] = utter_super
 
     def forward(self, game):
         timesteps = []
@@ -110,31 +112,36 @@ class AgentModule(nn.Module):
             self.df_utterance = [pd.DataFrame(index=range(game.batch_size), columns=self.df_utterance_col_name
                                               , dtype=np.int64) for i in range(game.num_agents)]
         self.total_loss = 0
+        self.words_loss = 0
+        self.emergamce_loss = 0
         for t in range(self.time_horizon):
             movements = Variable(self.Tensor(game.batch_size, game.num_entities, self.movement_dim_size).zero_())
             utterances = None
             goal_predictions = None
             if self.using_utterances:
                 utterances = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
+                utterances_super = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
                 goal_predictions = Variable(self.Tensor(game.batch_size, game.num_agents, game.num_agents, self.goal_size))
 
             if self.create_data_set_mode:
-                self.df_utterance = self.create_data_set.generate_sentences(game, t, self.df_utterance)
+                self.df_utterance = self.create_data_set.generate_sentences(game, t, self.df_utterance, mode=self.mode)
 
             for agent in range(game.num_agents):
                 physical_feat = self.get_physical_feat(game, agent)
                 utterance_feat = self.get_utterance_feat(game, agent, goal_predictions)
                 if self.create_data_set_mode:
                     self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances,
-                                    self.df_utterance[agent]['Full Sentence' + str(t)])
+                                    self.df_utterance[agent]['Full Sentence' + str(t)], utterances_super)
                 else:
                     self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances)
 
-            cost = game(movements, goal_predictions, utterances, t)
+            cost = game(movements, goal_predictions, utterances, t, utterances_super)
             if self.penalizing_words:
                 cost = cost + self.word_counter(utterances)
 
             self.total_cost = self.total_cost + cost + self.total_loss
+            self.words_loss += self.total_loss.item()
+            self.emergamce_loss += self.total_cost.item() + cost.item()
             if not self.training:
                 timesteps.append({
                     'locations': game.locations,
@@ -145,5 +152,5 @@ class AgentModule(nn.Module):
 
         if self.create_data_set_mode:
             self.create_data_set.generate_dataset_txt_file(game.batch_size, self.df_utterance, self.df_utterance_col_name)
-
+        print('Emergance Loss is {0}, words loss is {1}'.format(self.emergamce_loss, self.words_loss))
         return self.total_cost, timesteps

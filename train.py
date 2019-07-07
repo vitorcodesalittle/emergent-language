@@ -83,11 +83,21 @@ def main():
     scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True, cooldown=5)
     losses = defaultdict(lambda: defaultdict(list))
     dists = defaultdict(lambda: defaultdict(list))
-    for epoch in range(training_config.num_epochs):
-        num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)
-        num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks+1)
+    if args['one_sentence_data_set']:
+        num_agents = np.random.randint(game_config.min_agents, game_config.max_agents + 1)
+        num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks + 1)
         agent.reset()
-        game = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
+        game_init = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
+
+    for epoch in range(training_config.num_epochs):
+        if args['one_sentence_data_set'] == False:
+            num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)
+            num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks+1)
+            agent.reset()
+            game = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
+        else:
+            agent.reset()
+            game = game_init
         if training_config.use_cuda:
             game.cuda()
         optimizer.zero_grad()

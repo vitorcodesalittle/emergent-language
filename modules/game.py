@@ -123,7 +123,7 @@ class GameModule(nn.Module):
     Returns:
         - scalar: total cost of all games in the batch
     """
-    def forward(self, movements, goal_predictions, utterances, t):
+    def forward(self, movements, goal_predictions, utterances, t, utterance_super):
         self.locations = self.locations + movements
         self.plots_matrix.save_plot_matrix(t, self.locations, self.colors, self.shapes) ####
         agent_baselines = self.locations[:, :self.num_agents]
@@ -134,6 +134,7 @@ class GameModule(nn.Module):
         if self.using_utterances:
             self.utterances = utterances
             self.plots_matrix.save_utterance_matrix(utterances, t) ####
+            self.plots_matrix.save_utterance_matrix(utterance_super,t, mode='super')
             return self.compute_cost(movements, goal_predictions, utterances)
         else:
             return self.compute_cost(movements, goal_predictions)

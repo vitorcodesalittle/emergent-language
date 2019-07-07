@@ -1,6 +1,8 @@
 import os
 import string
 import subprocess
+import torch
+
 # import progressbar
 # from time import sleep
 
@@ -56,28 +58,40 @@ class Plot:
         self.players_file_name = folder_dir + 'players.h5'
         self.sentence_file_name = folder_dir + 'sentence.h5'
         self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
+        self.sentence_file_name_super = folder_dir + 'sentence_super.h5'
 
-    def save_utterance_matrix(self, utterance, iteration):
-        if iteration == 0:
-            self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, utterance.shape[2]))
-        elif iteration < self.total_iteration - 2:
-            self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
+    def save_utterance_matrix(self, utterance, iteration, mode = None):
+        if mode is None:
+            if iteration == 0:
+                self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, 10))
+            self.utterance_matrix[:,iteration+1, :, :] = utterance.detach().numpy()
+            if iteration == self.total_iteration -2:
+                if os.path.isfile(self.sentence_file_name):
+                    self.save_h5_file('a', utterance='ON')
+                else:
+                    self.save_h5_file('w', utterance='ON')
         else:
-            self.utterance_matrix[:,iteration + 1, :, :] = utterance.detach().numpy()
-            if os.path.isfile(self.sentence_file_name):
-                self.save_h5_file('a', utterance='ON')
-            else:
-                self.save_h5_file('w', utterance='ON')
+            if iteration == 0:
+                self.utterance_super_matrix = np.zeros(
+                shape=(self.batch_num, self.total_iteration, self.num_agents, 10))
+            self.utterance_super_matrix[:, iteration+1, :, :] = utterance.detach().numpy()
+            if iteration == self.total_iteration-2:
+                if os.path.isfile(self.sentence_file_name_super):
+                    self.save_h5_file('a', utterance='ON',mode_utter='super')
+                else:
+                    self.save_h5_file('w', utterance='ON',mode_utter='super')
 
-    def save_h5_file(self, mode, utterance=None):
+    def save_h5_file(self, mode, utterance=None, mode_utter=None):
         if utterance is None:
             save_dataset(self.location_file_name, 'location', self.location_matrix, mode)
             save_dataset(self.colors_file_name, 'colors', self.color_matrix, mode)
             save_dataset(self.shape_file_name, 'shape', self.shape_matrix, mode)
             save_dataset(self.players_file_name, 'players', self.num_agents, mode)
             save_dataset(self.goals_by_landmark_file_name, 'goals', self.goals_by_landmark, mode)
-        elif utterance is not None:
+        elif utterance is not None and mode_utter is None:
             save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, mode)
+        elif utterance is not None and mode_utter is not None:
+            save_dataset(self.sentence_file_name_super, 'sentence_super', self.utterance_super_matrix, mode)
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':
@@ -125,7 +139,7 @@ class Plot:
             title = ""
             for agent in range(num_agents):
                 title += "the Goal of agent {0} is that agent {1} will reach LM {2}\n"\
-                    .format(goals_by_landmark[batch, agent, 1], agent, goals_by_landmark[batch, agent, 0])
+                    .format(goals_by_landmark[batch, agent, 1], agent, goals_by_landmark[batch, agent, 0] - num_agents)
             for iteration in range(total_iterations):
                 plt.clf()
                 fig, ax = plt.subplots()
@@ -144,10 +158,10 @@ class Plot:
                     plt.draw()
                 # Shrink current axis's height by 10% on the bottom ,  so the legand will not be over the plot
                 box = ax.get_position()
-                ax.set_position([box.x0, box.y0 + box.height * 0.05, box.width, box.height * 0.9])
+                ax.set_position([box.x0, box.y0 + box.height * 0.05, box.width, box.height * 0.75])
                 # Put a legend to the right of the current axis
                 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
-                          fancybox=True, shadow=True, ncol=2, prop={'size': 10})
+                          fancybox=True, shadow=True, ncol=1, prop={'size': 8})
                 plt.title(title)
                 plt.savefig('plots' + os.sep + 'epoch_{0}batchnum_{1}iter_{2}.png'.format(epoch, batch, iteration))
                 plt.close()
@@ -181,7 +195,12 @@ class Plot:
 
     @staticmethod
     def decoded_utterance(utterance, dataset_dictionary):
-        return [dataset_dictionary.word_dict.i2w(word) for word in utterance]
+        #the data is saved only as numpay array
+        utterance_encoded = []
+        for i in range(len(utterance)):
+            utterance_encoded += [' '.join([dataset_dictionary.word_dict.i2w(torch.LongTensor(np.array([word])))[0]
+                                            for word in utterance[i]])]
+        return utterance_encoded
 
     @staticmethod
     def create_sucees_reate_plot(sucess_rate_per_epoch, sucess_rate_per_epoch_std, epoch_range):

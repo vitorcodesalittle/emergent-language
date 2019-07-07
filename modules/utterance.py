@@ -57,6 +57,7 @@ class Utterance(nn.Module):
                          if len(encoded_utter[i]) < longest_sentence else encoded_utter[i]
                          for i in range(len(full_sentence))]
         encoded_utter = Variable(torch.LongTensor(np.array(encoded_utter)))
+        encoded_utter_out = encoded_utter
         encoded_utter = encoded_utter.transpose(0, 1)
         encoded_utter = encoded_utter.contiguous()
         inpt = encoded_utter.narrow(0, 0, encoded_utter.size(0) - 1)
@@ -78,9 +79,9 @@ class Utterance(nn.Module):
             # create initial hidden state for the language rnn and self_words
             self.lang_hs = []
             self.write(self.lang_h, processed.unsqueeze(0)) #undecoded utter, to decode it use: self._decode(utter, self.lm_model.word_dict)
-
-        utter_print = self.lm_model.word_dict.i2w(self.words[1].data.cpu()) # [str(self.total_loss)]
-        utter_print = ' '.join(utter_print)
+        utter_print = '' ##remove
+        # utter_print = self.lm_model.word_dict.i2w(self.words[1].data.cpu()) # [str(self.total_loss)]
+        # utter_print = ' '.join(utter_print)
         if self.action_processor_config.mode == 'train_utter':
             with open(self.config.folder_dir+os.sep+"utterance_out_fb.csv", 'a', newline='') as f:
                 f.write(utter_print)
@@ -98,8 +99,7 @@ class Utterance(nn.Module):
             with open(self.config.folder_dir+os.sep+'lm_model.pt', 'wb') as f:
                 torch.save(self.lm_model.state_dict(), f)
             print(loss, epoch)
-            return loss, word, self.opt
-
+            return loss, word, encoded_utter_out
         else:
             with open(self.config.folder_dir+os.sep+"utterance_out_fine_tune.csv", 'a', newline='') as f:
                 f.write(utter_print)
@@ -107,7 +107,7 @@ class Utterance(nn.Module):
             self.opt.zero_grad()
             # print(self.total_loss)
             # print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
-            return self.loss, self.words
+            return self.loss, self.words, encoded_utter_out
 
     def create_utterance_using_old_code(self, training, processed):
         utter = self.utterance_chooser(processed)
