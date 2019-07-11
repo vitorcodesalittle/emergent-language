@@ -15,6 +15,9 @@ from modules.predefined_utterances_module import PredefinedUtterancesModule
 from modules.utterance import Utterance
 from train import parser
 
+#to delete after testing utterance relvance
+colors_dict = ['red', 'green', 'blue']
+shapes_dict = ['circle', 'triangle']
 
 def main():
     args = vars(parser.parse_args())
@@ -75,17 +78,31 @@ def main():
         elif not selfplay and one_sentence_mode:
             torch.save(processed, args['folder_dir']+os.sep+'processed.pt')
         full_sentence = df_utterance[agent_num]['Full Sentence' + str(iter)]
+
         if selfplay:
-            loss, utterance, optimizer = utter(processed, full_sentence, epoch=epoch)
+            loss, utterance, _ = utter(processed, full_sentence, epoch=epoch)
+            with open(folder_dir + os.sep + "utterance_selfplay_annotation.csv", 'a', newline='') as f:
+                for index in range(len(utterance)):
+                    f.write(' '.join(corpus.word_dict.i2w(utterance[index].data.cpu())))
+                    f.write(" " + 'agent_color' + " " + colors_dict[df_utterance[agent_num]['agent_color'][index]])
+                    f.write(" " + 'agent_shape' + " " + shapes_dict[df_utterance[agent_num]['agent_shape'][index]])
+                    f.write(" " + 'lm_color' + " " + colors_dict[df_utterance[agent_num]['lm_color'][index]])
+                    f.write(" " + 'lm_shape' + " " + shapes_dict[df_utterance[agent_num]['lm_shape'][index]])
+                    f.write('\n')
         else:
-            loss, utterance, optimizer = utter(processed, full_sentence, epoch=epoch)
+            loss, utterance, folder_dir = utter(processed, full_sentence, epoch=epoch)
+            with open(folder_dir + os.sep + "utterance_out_fb.csv", 'a', newline='') as f:
+                f.write("-----")
+                f.write(full_sentence[1])
+                f.write("----")
+                f.write(colors_dict[df_utterance[agent_num]['agent_color'][1]])
+                f.write(" " + str(df_utterance[agent_num]['dist'][1]))
+                f.write(" " + str(iter))
+                f.write('\n')
     if mode == 'train_utter':
-        with open(training_config.save_model_file, 'wb') as f:
+            with open(training_config.save_model_file, 'wb') as f:
                 torch.save(utter.state_dict(), f)
     print("Saved agent model weights at %s" % training_config.save_model_file)
-        # model_state = {'epoch': epoch + 1, 'state_dict': utter.state_dict(),
-        #      'optimizer': optimizer.state_dict()}
-        # torch.save(model_state, training_config.save_model_file)
 
 if __name__ == "__main__":
-    main()
+        main()

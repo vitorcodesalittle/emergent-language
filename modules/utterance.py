@@ -12,6 +12,12 @@ import torch.nn.functional as F
 from modules.dialog_model import DialogModel
 from modules.modules_for_lm import Criterion
 
+colors_dict = ['red', 'green', 'blue']
+shapes_dict = ['circle', 'triangle']
+color_dict = {'red':0,
+              'blue':1,
+              'green':2}
+
 class Utterance(nn.Module):
     def __init__(self, action_processor_config, utterance_config, dataset_dictionary, use_utterance_old_code):
         super(Utterance, self).__init__()
@@ -35,10 +41,16 @@ class Utterance(nn.Module):
                                     None, 4,
                                     utterance_config,
                                     None, self.action_processor_config.mode)
-        if not self.action_processor_config.mode == 'train_utter':
-            with open(utterance_config.folder_dir+'lm_model.pt', 'rb') as f:
-                self.lm_model.load_state_dict(torch.load(f))
-        self.crit = Criterion(dataset_dictionary.word_dict, device_id=None)
+        # if not self.action_processor_config.mode == 'train_utter': #todo reacrivate
+        #     with open(utterance_config.folder_dir+'lm_model.pt', 'rb') as f:
+        #         self.lm_model.load_state_dict(torch.load(f))
+        self.colors_dict_keys = [self.lm_model.word_dict.word2idx[color] for color in colors_dict]
+        # self.shapes_dict_keys = [self.lm_model.word_dict.word2idx[shape] for shape in shapes_dict]
+        annotation = [[self.lm_model.word_dict.word2idx['red']],
+                      [self.lm_model.word_dict.word2idx['blue']],
+                      [self.lm_model.word_dict.word2idx['green']]]
+        self.crit = Criterion(dataset_dictionary.word_dict, device_id=None, annotation =annotation)
+        # self.crit = Criterion(dataset_dictionary.word_dict, device_id=None)
 
         self.opt = optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
         self.config = utterance_config
@@ -80,12 +92,12 @@ class Utterance(nn.Module):
             self.lang_hs = []
             self.write(self.lang_h, processed.unsqueeze(0)) #undecoded utter, to decode it use: self._decode(utter, self.lm_model.word_dict)
         utter_print = '' ##remove
-        # utter_print = self.lm_model.word_dict.i2w(self.words[1].data.cpu()) # [str(self.total_loss)]
-        # utter_print = ' '.join(utter_print)
+        utter_print = self.lm_model.word_dict.i2w(self.words[1].data.cpu()) # [str(self.total_loss)]
+        utter_print = ' '.join(utter_print)
         if self.action_processor_config.mode == 'train_utter':
             with open(self.config.folder_dir+os.sep+"utterance_out_fb.csv", 'a', newline='') as f:
                 f.write(utter_print)
-                f.write('\n')
+                # f.write('\n')
             if epoch == 100:
                 for param_group in self.opt.param_groups:
                     param_group['lr'] = 0.000001
@@ -99,7 +111,7 @@ class Utterance(nn.Module):
             with open(self.config.folder_dir+os.sep+'lm_model.pt', 'wb') as f:
                 torch.save(self.lm_model.state_dict(), f)
             print(loss, epoch)
-            return loss, word, encoded_utter_out
+            return loss, self.words , self.config.folder_dir
         else:
             with open(self.config.folder_dir+os.sep+"utterance_out_fine_tune.csv", 'a', newline='') as f:
                 f.write(utter_print)

@@ -34,10 +34,10 @@ class ActionModule(nn.Module):
         if self.using_utterances:
             self.utter = Utterance(config, utterance_config, dataset_dictionary, use_old_utterance_code)
         #
-        if not config.mode == "train_utter":
-            folder_dir_fb_model = utterance_config.fb_dir
-            with open(folder_dir_fb_model, 'rb') as f:
-                self.utter.load_state_dict(torch.load(f))
+        # if not config.mode == "train_utter": #todo reactivate
+        #     folder_dir_fb_model = utterance_config.fb_dir
+        #     with open(folder_dir_fb_model, 'rb') as f:
+        #         self.utter.load_state_dict(torch.load(f))
 
     def processed_data(self, physical, goal, mem, utterance_feat=None):
         goal_processed, _ = self.goal_processor(goal, mem)
@@ -62,5 +62,8 @@ class ActionModule(nn.Module):
         else:
             utter = None
         final_movement = (movement * 2 * self.movement_step_size) - self.movement_step_size
-        return final_movement, utter, mem, total_loss, utter_super
+        if use_old_utterance_code:
+            return  final_movement, utter, mem, None, None
+        else:
+            return final_movement, utter, mem, total_loss, utter_super
 

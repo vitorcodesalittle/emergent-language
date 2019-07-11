@@ -22,7 +22,7 @@ DEFAULT_TIME_HORIZON = 16
 
 USE_UTTERANCES = False
 PENALIZE_WORDS = True
-DEFAULT_VOCAB_SIZE = 10
+DEFAULT_VOCAB_SIZE = 13
 DEFAULT_OOV_PROB = 1
 DEFAULT_DF_UTTERANCE_COL_NAME = ['agent_color', 'agent_shape', 'lm_color', 'lm_shape', 'sentence']
 DEFAULT_FB_DIR = r"C:\Users\Doron\Desktop\emergent-language\debag\modules_weights.pt"

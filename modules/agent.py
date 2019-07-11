@@ -95,7 +95,8 @@ class AgentModule(nn.Module):
         else:
             return None
 
-    def get_action(self, game, agent, physical_feat, utterance_feat, movements, utterances, full_sentence=None, utterances_super = None):
+    def get_action(self, game, agent, physical_feat, utterance_feat, movements, utterances,
+                   full_sentence=None, utterances_super = None):
         movement, utterance, new_mem, self.total_loss, utter_super = self.action_processor(physical_feat, game.observed_goals[:,agent],
                                                              game.memories["action"][:,agent], self.training,
                                                              self.use_old_utterance_code, full_sentence, self.total_loss,
@@ -104,7 +105,7 @@ class AgentModule(nn.Module):
         movements[:,agent,:] = movement
         if self.using_utterances:
             utterances[:,agent,:] = utterance
-            utterances_super[:,agent,:] = utter_super
+            # utterances_super[:,agent,:] = utter_super #todo see if we need this
 
     def forward(self, game):
         timesteps = []
@@ -138,10 +139,8 @@ class AgentModule(nn.Module):
             cost = game(movements, goal_predictions, utterances, t, utterances_super)
             if self.penalizing_words:
                 cost = cost + self.word_counter(utterances)
-
+            self.total_loss =  0 #todo change
             self.total_cost = self.total_cost + cost + self.total_loss
-            self.words_loss += self.total_loss.item()
-            self.emergamce_loss += self.total_cost.item() + cost.item()
             if not self.training:
                 timesteps.append({
                     'locations': game.locations,
@@ -152,5 +151,4 @@ class AgentModule(nn.Module):
 
         if self.create_data_set_mode:
             self.create_data_set.generate_dataset_txt_file(game.batch_size, self.df_utterance, self.df_utterance_col_name)
-        print('Emergance Loss is {0}, words loss is {1}'.format(self.emergamce_loss, self.words_loss))
         return self.total_cost, timesteps

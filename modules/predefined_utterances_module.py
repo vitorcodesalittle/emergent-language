@@ -12,17 +12,18 @@ end_token = '<eos>'
 
 
 goto_sentences = [
-    "<agent_color> agent go to <lm_color> landmark",
-    "<agent_color> <agent_shape> agent go to <lm_color> <lm_shape> landmark",
-    "<agent_shape> agent go to <lm_shape> landmark",
-    "<agent_color> agent go to <lm_shape> landmark",
-    "<agent_shape> agent go to <lm_color> landmark"]
+    "<agent_color> agent go to <lm_color> landmark"]
+    # "<agent_color> <agent_shape> agent go to <lm_color> <lm_shape> landmark",
+    # "<agent_shape> agent go to <lm_shape> landmark",
+    # "<agent_color> agent go to <lm_shape> landmark",
+    # "<agent_shape> agent go to <lm_color> landmark"]
 
 continue_sentences = [
-    "<agent_color> agent continue",
-    "<agent_color> <agent_shape> agent continue",
-    "<agent_shape> agent continue",
-    "you are on the right track"]
+    'good job continue to the direction of your landmark <agent_color>']
+    # "<agent_color> agent continue",
+    # "<agent_color> <agent_shape> agent continue",
+    # "<agent_shape> agent continue",
+    # "you are on the right track"]
 
 stay_sentences = [
     "<agent_color> agent stay",
@@ -30,15 +31,17 @@ stay_sentences = [
     "<agent_shape> agent stay"]
 
 done_sentences = [
-    "<agent_color> agent is done",
-    "<agent_color> <agent_shape> agent is done",
-    "<agent_shape> agent is done",
-    "<agent_color> good job",
-    "<agent_color> <agent_shape> good job",
-    "<agent_shape> good job",
-    "you go girl"
-]
-sentence_pool = goto_sentences + continue_sentences
+    'well done <agent_color> agent you had reach your destination']
+    # "<agent_color> agent is done",
+    # "<agent_color> <agent_shape> agent is done",
+    # "<agent_shape> agent is done",
+    # "<agent_color> good job",
+    # "<agent_color> <agent_shape> good job",
+    # "<agent_shape> good job",
+    # "you go girl"]
+
+# sentence_pool = goto_sentences + continue_sentences
+sentence_pool = continue_sentences
 sentence_form = goto_sentences + continue_sentences+stay_sentences+done_sentences
 token_regex = '\w*<(\w*)>\w*'
 tokens = set([re.findall(token_regex,sentence)[i]
@@ -60,9 +63,12 @@ class PredefinedUtterancesModule:
             if iter == 0:
                 sentence = random.randint(0, len(goto_sentences) - 1)
                 sentence_ds = goto_sentences
-            elif row['dist'] > 3:
+            elif row['dist'] > 3 and row['dist'] < 7:
                 sentence = random.randint(0, len(sentence_pool) - 1)
                 sentence_ds = sentence_pool
+            elif row['dist'] > 7:
+                sentence = random.randint(0, len(goto_sentences) - 1)
+                sentence_ds = goto_sentences
             else:
                 sentence = random.randint(0, len(done_sentences) - 1)
                 sentence_ds = done_sentences
@@ -76,7 +82,7 @@ class PredefinedUtterancesModule:
         return sentence
 
     def generate_sentence(self,agent_color, agent_shape, lm_color, lm_shape, dist, iter, df_utterance, mode):
-        if iter == 0 or mode =='selfplay':
+        if iter == 0 or mode !='train_em':
             data = {'agent_color': torch.Tensor.numpy(agent_color)[:, 0],
                     'agent_shape': torch.Tensor.numpy(agent_shape)[:, 0],
                     'lm_color': torch.Tensor.numpy(lm_color)[:, 0],
