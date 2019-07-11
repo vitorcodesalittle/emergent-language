@@ -63,7 +63,7 @@ class Plot:
     def save_utterance_matrix(self, utterance, iteration, mode = None):
         if mode is None:
             if iteration == 0:
-                self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, 13))
+                self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, 10))
             self.utterance_matrix[:,iteration+1, :, :] = utterance.detach().numpy()
             if iteration == self.total_iteration -2:
                 if os.path.isfile(self.sentence_file_name):
@@ -73,7 +73,7 @@ class Plot:
         else:
             if iteration == 0:
                 self.utterance_super_matrix = np.zeros(
-                shape=(self.batch_num, self.total_iteration, self.num_agents, 13))
+                shape=(self.batch_num, self.total_iteration, self.num_agents, 10))
             self.utterance_super_matrix[:, iteration+1, :, :] = utterance.detach().numpy()
             if iteration == self.total_iteration-2:
                 if os.path.isfile(self.sentence_file_name_super):
