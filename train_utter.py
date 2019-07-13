@@ -37,6 +37,7 @@ def main():
     agent = AgentModule(agent_config, utterance_config, corpus, run_default_config.creating_data_set_mode,
                         run_default_config.create_utterance_using_old_code)
     utter = Utterance(agent_config.action_processor, utterance_config, corpus, run_default_config.create_utterance_using_old_code)
+
     if not mode == "train_utter":
         folder_dir_fb_model = utterance_config.fb_dir
         with open(folder_dir_fb_model, 'rb') as f:
@@ -55,6 +56,7 @@ def main():
         iter = random.randint(0, game.time_horizon)
         df_utterance = create_data_set.generate_sentences(game, iter, df_utterance, one_sentence_mode, mode=mode)
     for epoch in range(training_config.num_epochs):
+        utter.train()
         if not one_sentence_mode:
             num_agents = np.random.randint(game_config.min_agents,
                                        game_config.max_agents + 1)
@@ -73,10 +75,10 @@ def main():
         goal = game.observed_goals[:, agent_num]
         processed, mem = action.processed_data(physical_feat, goal, mem,
                                                    utterance_feat)
-        if selfplay and one_sentence_mode:
-           processed = torch.load(args['folder_dir']+os.sep+'processed.pt')
-        elif not selfplay and one_sentence_mode:
-            torch.save(processed, args['folder_dir']+os.sep+'processed.pt')
+        # if selfplay and one_sentence_mode: #todo fix folder dir
+        #    processed = torch.load(args['folder_dir']+os.sep+'processed.pt')
+        # elif not selfplay and one_sentence_mode:
+        #     torch.save(processed, args['folder_dir']+os.sep+'processed.pt')
         full_sentence = df_utterance[agent_num]['Full Sentence' + str(iter)]
 
         if selfplay:

@@ -43,7 +43,7 @@ parser.add_argument('--fb-dir', required=False, type=str, help='if specified FB 
 parser.add_argument('--mode', required=False, type=str, help='selfplay/train_em/train_utter')
 
 
-def print_losses(epoch, losses, dists, game_config, writer):
+def print_losses(epoch, losses, dists, game_config, writer, loss_language, loss_game):
     for a in range(game_config.min_agents, game_config.max_agents + 1):
         for l in range(game_config.min_landmarks, game_config.max_landmarks + 1):
             loss = losses[a][l][-1] if len(losses[a][l]) > 0 else 0
@@ -52,7 +52,8 @@ def print_losses(epoch, losses, dists, game_config, writer):
             min_dist = min(dists[a][l]) if len(dists[a][l]) > 0 else 0
             writer.add_scalar('Loss,' + str(a) + 'agents,' + str(l) + 'landmarks' , loss, epoch) #data for Tensorboard
             writer.add_scalar('dist,' + str(a) + 'agents,' + str(l) + 'landmarks' , dist, epoch) #data for TensorBoard
-
+            writer.add_scalar('loss_language,' + str(a) + 'agents,' + str(l) + 'landmarks', loss_language, epoch)
+            writer.add_scalar('loss_game,' + str(a) + 'agents,' + str(l) + 'landmarks', loss_game, epoch)
             print("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f][min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
     print("_________________________")
 
@@ -102,7 +103,7 @@ def main():
             game.cuda()
         optimizer.zero_grad()
 
-        total_loss, _ = agent(game)
+        total_loss, _, language_loss, dist_loss = agent(game, epoch)
         per_agent_loss = total_loss.data[0] / num_agents / game_config.batch_size
         losses[num_agents][num_landmarks].append(per_agent_loss)
 
@@ -116,7 +117,7 @@ def main():
         avg_dist = dist.data.item() / num_agents / game_config.batch_size
         dists[num_agents][num_landmarks].append(avg_dist)
 
-        print_losses(epoch, losses, dists, game_config, writer)
+        print_losses(epoch, losses, dists, game_config, writer, language_loss, dist_loss)
         torch.autograd.set_detect_anomaly(True)
         total_loss.backward()
         optimizer.step()

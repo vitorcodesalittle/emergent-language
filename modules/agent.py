@@ -99,26 +99,26 @@ class AgentModule(nn.Module):
                    full_sentence=None, utterances_super = None):
         movement, utterance, new_mem, self.total_loss, utter_super = self.action_processor(physical_feat, game.observed_goals[:,agent],
                                                              game.memories["action"][:,agent], self.training,
-                                                             self.use_old_utterance_code, full_sentence, self.total_loss,
-                                                             utterance_feat)
+                                                             self.use_old_utterance_code, full_sentence, game.folder_dir , utterance_feat)
         self.update_mem(game, "action", new_mem, agent)
         movements[:,agent,:] = movement
         if self.using_utterances:
             utterances[:,agent,:] = utterance
             # utterances_super[:,agent,:] = utter_super #todo see if we need this
 
-    def forward(self, game):
+    def forward(self, game, epoch):
         timesteps = []
         if self.create_data_set_mode:
             self.df_utterance = [pd.DataFrame(index=range(game.batch_size), columns=self.df_utterance_col_name
                                               , dtype=np.int64) for i in range(game.num_agents)]
-        self.total_loss = 0
-        self.words_loss = 0
+        # self.total_loss = 0
+        # self.words_loss = 0
         self.emergamce_loss = 0
         for t in range(self.time_horizon):
             movements = Variable(self.Tensor(game.batch_size, game.num_entities, self.movement_dim_size).zero_())
             utterances = None
             goal_predictions = None
+            self.epoch = epoch
             if self.using_utterances:
                 utterances = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
                 utterances_super = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
@@ -137,10 +137,16 @@ class AgentModule(nn.Module):
                     self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances)
 
             cost = game(movements, goal_predictions, utterances, t, utterances_super)
-            if self.penalizing_words:
-                cost = cost + self.word_counter(utterances)
-            self.total_loss =  0 #todo change
-            self.total_cost = self.total_cost + cost + self.total_loss
+            # if self.penalizing_words:
+            #     cost = cost + self.word_counter(utterances)
+            # self.total_loss =  0 #todo change
+            if self.epoch <= 300:
+                self.total_cost = self.total_cost + cost + (100 * self.total_loss)
+            elif self.epoch > 300 and self.epoch <= 600:
+                self.total_cost = self.total_cost + cost + (300 * self.total_loss)
+            else:
+                self.total_cost = self.total_cost + cost + (1000 * self.total_loss)
+
             if not self.training:
                 timesteps.append({
                     'locations': game.locations,
@@ -149,6 +155,6 @@ class AgentModule(nn.Module):
                 if self.using_utterances:
                     timesteps[-1]['utterances'] = utterances
 
-        if self.create_data_set_mode:
-            self.create_data_set.generate_dataset_txt_file(game.batch_size, self.df_utterance, self.df_utterance_col_name)
-        return self.total_cost, timesteps
+        # if self.create_data_set_mode:
+        #     self.create_data_set.generate_dataset_txt_file(game.batch_size, self.df_utterance, self.df_utterance_col_name)
+        return self.total_cost, timesteps, self.total_cost, self.total_loss

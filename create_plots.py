@@ -16,9 +16,9 @@ def get_newest_dir():
 
 parser = argparse.ArgumentParser(description='Create plot from h5 files')
 parser.add_argument('--dir', required=False, type=str, default=get_newest_dir(),help='Directory to folder containing h5 files')
-parser.add_argument('--batch-size', required=False, type=int, default=1, help='Batch size')
-parser.add_argument('--epoch-range', required=False, default = range(0,5,1), help='define how we sampeled the epochs for plotting')
-parser.add_argument('--batch-range', required=False, default = range(1), help='' )
+parser.add_argument('--batch-size', required=False, type=int, default=5, help='Batch size')
+parser.add_argument('--epoch-range', required=False, default = range(0,900,10), help='define how we sampeled the epochs for plotting')
+parser.add_argument('--batch-range', required=False, default = range(16), help='' )
 
 
 def main(args):

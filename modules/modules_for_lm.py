@@ -43,12 +43,16 @@ def init_cont(cont, init_range):
 
 class Criterion(object):
     """Weighted CrossEntropyLoss."""
-    def __init__(self, dictionary, device_id=None, annotation = [] , bad_toks=[], reduction='elementwise_mean'):
+    def __init__(self, dictionary, device_id=None, annotation = [] ,state = None, bad_toks=[], reduction='elementwise_mean'):
         w = torch.Tensor(len(dictionary)).fill_(1)
         for tok in bad_toks:
             w[dictionary.get_idx(tok)] = 0.0
-        for tok in annotation:
-            w[tok] = 3.0
+        if state is None:
+            for tok in annotation:
+                w[tok] = 1.0
+        else:
+            for tok in annotation:
+                w[tok] = 10
         if device_id is not None:
             w = w.cuda(device_id)
         # https://pytorch.org/docs/stable/nn.html

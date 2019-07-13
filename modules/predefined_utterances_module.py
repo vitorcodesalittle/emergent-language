@@ -12,14 +12,15 @@ end_token = '<eos>'
 
 
 goto_sentences = [
-    "<agent_color> agent go to <lm_color> landmark"]
+    "<agent_color> agent go to <lm_shape> landmark"]
     # "<agent_color> <agent_shape> agent go to <lm_color> <lm_shape> landmark",
     # "<agent_shape> agent go to <lm_shape> landmark",
     # "<agent_color> agent go to <lm_shape> landmark",
     # "<agent_shape> agent go to <lm_color> landmark"]
 
 continue_sentences = [
-    'good job continue to the direction of your landmark <agent_color>']
+    'good job continue to the direction of your landmark <agent_color>',
+    'continue to your <lm_shape> landmark <agent_color> agent']
     # "<agent_color> agent continue",
     # "<agent_color> <agent_shape> agent continue",
     # "<agent_shape> agent continue",
@@ -41,7 +42,9 @@ done_sentences = [
     # "you go girl"]
 
 # sentence_pool = goto_sentences + continue_sentences
-sentence_pool = continue_sentences
+sentence_pool = [continue_sentences[0]]
+sentence_pool_1 = [continue_sentences[1]]
+
 sentence_form = goto_sentences + continue_sentences+stay_sentences+done_sentences
 token_regex = '\w*<(\w*)>\w*'
 tokens = set([re.findall(token_regex,sentence)[i]
@@ -63,12 +66,16 @@ class PredefinedUtterancesModule:
             if iter == 0:
                 sentence = random.randint(0, len(goto_sentences) - 1)
                 sentence_ds = goto_sentences
-            elif row['dist'] > 3 and row['dist'] < 7:
+            elif row['dist'] >= 0.5 and row['dist'] < 2:
                 sentence = random.randint(0, len(sentence_pool) - 1)
                 sentence_ds = sentence_pool
-            elif row['dist'] > 7:
+            elif row['dist'] >= 2 and row['dist'] < 4:
+                sentence = random.randint(0, len(sentence_pool) - 1)
+                sentence_ds = sentence_pool_1
+            elif row['dist'] >= 4:
                 sentence = random.randint(0, len(goto_sentences) - 1)
                 sentence_ds = goto_sentences
+                # sentence_ds = goto_sentences
             else:
                 sentence = random.randint(0, len(done_sentences) - 1)
                 sentence_ds = done_sentences
