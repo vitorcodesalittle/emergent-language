@@ -9,6 +9,8 @@ from modules.agent import AgentModule
 from modules.game import GameModule
 from tensorboardX import SummaryWriter  # the tensorboardX is installed in the anaconda console
 from torch.optim import RMSprop
+from torch import optim
+
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import configs
@@ -80,7 +82,8 @@ def main():
         pass
     if training_config.use_cuda:
         agent.cuda()
-    optimizer = RMSprop(agent.parameters(), lr=training_config.learning_rate)
+    optimizer = optim.Adam(agent.parameters(), lr=utterance_config.lr)
+    # optimizer = RMSprop(agent.parameters(), lr=training_config.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True, cooldown=5)
     losses = defaultdict(lambda: defaultdict(list))
     dists = defaultdict(lambda: defaultdict(list))

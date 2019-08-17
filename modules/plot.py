@@ -31,11 +31,12 @@ def save_dataset(file_name, dataset_name, dataset, mode):
 def open_dataset(file_name, epoch):
     try:
         with h5py.File(file_name, 'r') as hf:
-            inner_file_name = list(hf.keys())[epoch]
-            return np.array(hf[inner_file_name])
+            inner_file_name = list(hf.keys())
+            for key in inner_file_name:
+                if str(epoch) in key:
+                    return np.array(hf[key])
     except Exception as e:
         print(e)
-
 class Plot:
     def __init__(self, batch_num, total_iteration, num_locations, location_dim, world_dim, num_agents, goals_by_landmark,
                  folder_dir):
@@ -127,6 +128,7 @@ class Plot:
                     print(out)
                     print(err)
 
+
     @staticmethod
     def create_plots(epoch, batch_size, dataset_dictionary):
         locations, colors, shapes, num_agents, utterance, goals_by_landmark = Plot.extract_data(epoch)
@@ -138,8 +140,8 @@ class Plot:
             colors_plot = np.array([dict_colors[str(color)] for color in np.array(colors[batch])])
             title = ""
             for agent in range(num_agents):
-                title += "the Goal of agent {0} is that agent {1} will reach LM {2}\n"\
-                    .format(goals_by_landmark[batch, agent, 1], agent, goals_by_landmark[batch, agent, 0] - num_agents)
+                title += "The goal of agent {0} is that agent {1} will reach LM {2}\n"\
+                    .format(int(goals_by_landmark[batch, agent, 1]), agent, int(goals_by_landmark[batch, agent, 0] - num_agents))
             for iteration in range(total_iterations):
                 plt.clf()
                 fig, ax = plt.subplots()

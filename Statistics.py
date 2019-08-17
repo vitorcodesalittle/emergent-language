@@ -41,7 +41,8 @@ class Statistics:
         for epoch in epoch_range:
             dist_from_goal_per_agent = torch.tensor(Plot.extract_data(epoch, dir=self.dir + os.sep, calculate_dist='ON'), dtype=torch.float)
             sucess_rate_batch = torch.sum(dist_from_goal_per_agent <= error_in_dist, dim=1)/dist_from_goal_per_agent.shape[1]
-            idx_of_batches_suceeded = (sucess_rate_batch == 1).nonzero()
+            idx_of_batches_suceeded = (sucess_rate_batch == 1).non
+            zero()
             with open('batch_succeed.txt', 'a+') as f:
                 f.write('In Epoch {0} the Total num of batches whos agent succeeded is: {1}\n'.format
                         (epoch,idx_of_batches_suceeded.shape[0]))

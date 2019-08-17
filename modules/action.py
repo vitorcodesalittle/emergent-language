@@ -50,18 +50,20 @@ class ActionModule(nn.Module):
         processed, mem = self.processor(x, mem)
         return processed, mem
 
-    def forward(self, physical, goal, mem, training, use_old_utterance_code, full_sentence,folder_dir , utterance_feat=None ):
+    def forward(self, physical, goal, mem, training, use_old_utterance_code, full_sentence,folder_dir, utterance_feat=None ):
         processed, mem = self.processed_data(physical, goal, mem, utterance_feat) #what is the goal in this point
         movement = self.movement_chooser(processed)
         if self.using_utterances:
             if use_old_utterance_code:
                 utter = self.utter.create_utterance_using_old_code(training, processed)
             else:
-                total_loss, utter, utter_super = self.utter(processed, full_sentence, folder_dir)
+                total_loss, utter, utter_super = self.utter(processed, full_sentence, None)
 
         else:
             utter = None
-        final_movement = (movement * 2 * self.movement_step_size) - self.movement_step_size
+        # final_movement = (movement * 2 * self.movement_step_size) - self.movement_step_size
+        final_movement = movement * self.movement_step_size
+
         if use_old_utterance_code:
             return  final_movement, utter, mem, None, None
         else:

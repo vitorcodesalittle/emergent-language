@@ -16,13 +16,14 @@ def get_newest_dir():
 
 parser = argparse.ArgumentParser(description='Create plot from h5 files')
 parser.add_argument('--dir', required=False, type=str, default=get_newest_dir(),help='Directory to folder containing h5 files')
-parser.add_argument('--batch-size', required=False, type=int, default=5, help='Batch size')
+parser.add_argument('--batch-size', required=False, type=int, default=16    , help='Batch size')
 parser.add_argument('--epoch-range', required=False, default = range(0,900,10), help='define how we sampeled the epochs for plotting')
 parser.add_argument('--batch-range', required=False, default = range(16), help='' )
 
 
 def main(args):
     dir = args.dir
+    dir = r'C:\Users\Doron\Desktop\emergent-language - Copy (2)\1629-13072019' + os.sep
     batch_size = args.batch_size
     epoch_range = args.epoch_range
     batch_range = args.batch_range

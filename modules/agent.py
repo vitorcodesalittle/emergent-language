@@ -140,9 +140,9 @@ class AgentModule(nn.Module):
             # if self.penalizing_words:
             #     cost = cost + self.word_counter(utterances)
             # self.total_loss =  0 #todo change
-            if self.epoch <= 300:
+            if self.epoch <= 150:
                 self.total_cost = self.total_cost + cost + (100 * self.total_loss)
-            elif self.epoch > 300 and self.epoch <= 600:
+            elif self.epoch > 150 and self.epoch <= 300:
                 self.total_cost = self.total_cost + cost + (300 * self.total_loss)
             else:
                 self.total_cost = self.total_cost + cost + (1000 * self.total_loss)

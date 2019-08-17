@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from modules.plot import Plot
 from torch.autograd import Variable
+import numpy as np
 
 """
     The GameModule takes in all actions(movement, utterance, goal prediction)
@@ -67,7 +68,11 @@ class GameModule(nn.Module):
         self.physical = Variable(torch.cat((self.colors, self.shapes), 2).float())
 
         for b in range(self.batch_size):
-            goal_agents[b, :, 0] = torch.randperm(self.num_agents)
+            for agent_index in range(self.num_agents):
+                choice_array = [agent for agent in range(self.num_agents)]
+                choice_array.remove(agent_index)
+                goal_agents[b,agent_index,0] = torch.LongTensor(np.random.choice(choice_array, 1))
+            # goal_agents[b, :, 0] = torch.randperm(self.num_agents)
 
         for b in range(self.batch_size):
             goal_locations[b] = self.locations.data[b][self.goal_entities[b].squeeze()]

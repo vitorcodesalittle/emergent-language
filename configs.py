@@ -18,7 +18,7 @@ DEFAULT_MODEL_FILE = 'modules_weights.pt'
 DEFAULT_HIDDEN_SIZE = 256
 DEFAULT_DROPOUT = 0.5
 DEFAULT_FEAT_VEC_SIZE = 256
-DEFAULT_TIME_HORIZON = 7
+DEFAULT_TIME_HORIZON = 16
 
 USE_UTTERANCES = False
 PENALIZE_WORDS = True
@@ -28,7 +28,7 @@ DEFAULT_DF_UTTERANCE_COL_NAME = ['agent_color', 'agent_shape', 'lm_color', 'lm_s
 DEFAULT_FB_DIR = r"C:\Users\Doron\Desktop\emergent-language\debag\modules_weights.pt"
 # DEFAULT_FB_DIR = ""
 DEFAULT_WORLD_DIM = 16
-MAX_AGENTS = 2 #TODO: add to readme
+MAX_AGENTS = 3 #TODO: add to readme
 MAX_LANDMARKS = 3
 MIN_AGENTS = 2
 MIN_LANDMARKS = 3

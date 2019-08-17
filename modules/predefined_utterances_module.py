@@ -12,7 +12,7 @@ end_token = '<eos>'
 
 
 goto_sentences = [
-    "<agent_color> agent go to <lm_shape> landmark"]
+    "<agent_color> agent go to <lm_color> <lm_shape> landmark"]
     # "<agent_color> <agent_shape> agent go to <lm_color> <lm_shape> landmark",
     # "<agent_shape> agent go to <lm_shape> landmark",
     # "<agent_color> agent go to <lm_shape> landmark",
@@ -20,7 +20,7 @@ goto_sentences = [
 
 continue_sentences = [
     'good job continue to the direction of your landmark <agent_color>',
-    'continue to your <lm_shape> landmark <agent_color> agent']
+    'continue to your <lm_color> <lm_shape> landmark <agent_color> agent']
     # "<agent_color> agent continue",
     # "<agent_color> <agent_shape> agent continue",
     # "<agent_shape> agent continue",
@@ -66,13 +66,13 @@ class PredefinedUtterancesModule:
             if iter == 0:
                 sentence = random.randint(0, len(goto_sentences) - 1)
                 sentence_ds = goto_sentences
-            elif row['dist'] >= 0.5 and row['dist'] < 2:
-                sentence = random.randint(0, len(sentence_pool) - 1)
-                sentence_ds = sentence_pool
             elif row['dist'] >= 2 and row['dist'] < 4:
                 sentence = random.randint(0, len(sentence_pool) - 1)
+                sentence_ds = sentence_pool
+            elif row['dist'] >= 4 and row['dist'] < 6:
+                sentence = random.randint(0, len(sentence_pool) - 1)
                 sentence_ds = sentence_pool_1
-            elif row['dist'] >= 4:
+            elif row['dist'] >= 6:
                 sentence = random.randint(0, len(goto_sentences) - 1)
                 sentence_ds = goto_sentences
                 # sentence_ds = goto_sentences
@@ -112,7 +112,7 @@ class PredefinedUtterancesModule:
             # TODO: use configs and not hard coded dims
             rand_agent_locations = torch.FloatTensor(np.random.uniform(low=0, high=16, size=(game.batch_size,2,2)))
             dist_from_goal = rand_agent_locations - game.sorted_goals
-        euclidean_distance = torch.sqrt(torch.sum(torch.pow(dist_from_goal, 2), dim=1))
+        euclidean_distance = torch.sqrt(torch.sum(torch.pow(dist_from_goal,2), -1))
         colors = game.colors
         shapes = game.shapes
         for i in range(game.num_agents):
