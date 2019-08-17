@@ -28,7 +28,7 @@ DEFAULT_DF_UTTERANCE_COL_NAME = ['agent_color', 'agent_shape', 'lm_color', 'lm_s
 DEFAULT_FB_DIR = r"C:\Users\Doron\Desktop\emergent-language\debag\modules_weights.pt"
 # DEFAULT_FB_DIR = ""
 DEFAULT_WORLD_DIM = 16
-MAX_AGENTS = 3 #TODO: add to readme
+MAX_AGENTS = 2 #TODO: add to readme
 MAX_LANDMARKS = 3
 MIN_AGENTS = 2
 MIN_LANDMARKS = 3
@@ -42,6 +42,7 @@ DEFAULT_CREATING_DATASET_MODE = True
 DEFAULT_FOLDER_DIR = str(Path(os.getcwd())) + os.sep + 'debag' + os.sep
 DEFAULT_CORPUS = None
 DEFAULT_USE_OLD_UTTERANCE_CODE = False
+DEFAULT_OPTIMIZER = 'Adam'
 
 
 DEFAULT_INIT_RANGE = 0.1
@@ -54,9 +55,10 @@ DEFAULT_MOMENTUM = 0.1
 DEFAULT_NESTEROV = False
 DEFAULT_CLIP = 0.5
 DEFAULT_TEMPERATURE = 0.5
+DEFAULT_ONE_SENTENCE_MODE = False
+DEFAULT_LANGUAGE_LOSS_MODE = 'None'
 
 UtteranceConfig = NamedTuple('UtteranceConfig', [
-    ('folder_dir', str),
     ('init_range', float),
     ('nhid_lang', int),
     ('nembed_word', int),
@@ -69,6 +71,7 @@ UtteranceConfig = NamedTuple('UtteranceConfig', [
     ('batch_size', int),
     ('temperature', float),
     ('fb_dir', str),
+    ('one_sentence_mode', bool),
 ])
 
 
@@ -81,6 +84,7 @@ TrainingConfig = NamedTuple('TrainingConfig', [
     ('save_model_file', str),
     ('use_cuda', bool),
     ('no_utterances', bool),
+    ('optimizer', str),
 ])
 
 GameConfig = NamedTuple('GameConfig', [
@@ -129,7 +133,8 @@ ActionModuleConfig = NamedTuple("ActionModuleConfig", [
     ('movement_step_size', int),
     ('vocab_size', int),
     ('use_utterances', bool),
-    ('use_cuda', bool)
+    ('use_cuda', bool),
+    ('language_loss_mode', str)
     ])
 
 AgentModuleConfig = NamedTuple("AgentModuleConfig", [
@@ -166,7 +171,8 @@ default_training_config = TrainingConfig(
         save_model=SAVE_MODEL,
         save_model_file=DEFAULT_MODEL_FILE,
         use_cuda=False,
-        no_utterances=False)
+        no_utterances=False,
+        optimizer=DEFAULT_OPTIMIZER)
 
 default_word_counter_config = WordCountingModuleConfig(
         vocab_size=DEFAULT_VOCAB_SIZE,
@@ -222,7 +228,8 @@ default_action_module_config = ActionModuleConfig(
         movement_step_size=constants.MOVEMENT_STEP_SIZE,
         vocab_size=DEFAULT_VOCAB_SIZE,
         use_utterances=USE_UTTERANCES,
-        use_cuda=False)
+        use_cuda=False,
+        language_loss_mode=DEFAULT_LANGUAGE_LOSS_MODE)
 
 default_goal_predicting_module_config = GoalPredictingProcessingModuleConfig(
     processor=get_processor_config_with_input_size(DEFAULT_VOCAB_SIZE),
@@ -246,7 +253,6 @@ default_agent_config = AgentModuleConfig(
         df_utterance_col_name = DEFAULT_DF_UTTERANCE_COL_NAME)
 
 default_utterance_config = UtteranceConfig(
-        folder_dir=DEFAULT_FOLDER_DIR,
         init_range=DEFAULT_INIT_RANGE,
         nhid_lang=DEFAULT_NHID_LANG,
         nembed_word=DEFAULT_NEMBED_WORDS,
@@ -258,36 +264,27 @@ default_utterance_config = UtteranceConfig(
         clip=DEFAULT_CLIP,
         batch_size=default_game_config.batch_size,
         temperature=DEFAULT_TEMPERATURE,
-        fb_dir=DEFAULT_FB_DIR)
+        fb_dir=DEFAULT_FB_DIR,
+        one_sentence_mode=DEFAULT_ONE_SENTENCE_MODE)
 
 
-def get_utterance_config():
+def get_utterance_config(kwargs):
     return UtteranceConfig(
-        folder_dir=default_utterance_config.folder_dir,
         init_range=default_utterance_config.init_range,
         nhid_lang=default_utterance_config.nhid_lang,
         nembed_word=default_utterance_config.nembed_word,
         nhid_ctx=default_utterance_config.nhid_ctx,
         dropout=default_utterance_config.dropout,
         momentum=default_utterance_config.momentum,
-        lr=default_utterance_config.lr,
+        lr=kwargs['learning_rate'] or default_utterance_config.lr,
         nesterov=default_utterance_config.nesterov,
         clip=default_utterance_config.clip,
-        batch_size=default_game_config.batch_size,
+        batch_size=kwargs['batch_size'] or default_game_config.batch_size,
         temperature=default_utterance_config.temperature,
-        fb_dir=default_utterance_config.fb_dir)
-        #todo we should use below data so we can change it using parmaters
-        # init_range=kwargs['init_range'] or default_utterance_config.init_range,
-        # nhid_lang=kwargs['nhid_lang'] or default_utterance_config.nhid_lang,
-        # nembed_word=kwargs['nembed_word'] or default_utterance_config.nembed_word,
-        # nhid_ctx=kwargs['nhid_ctx'] or default_utterance_config.nhid_ctx,
-        # dropout=kwargs['dropout'] or default_utterance_config.dropout,
-        # momentum=kwargs['momentum'] or default_utterance_config.momentum,
-        # lr=kwargs['lr'] or default_utterance_config.lr,
-        # nesterov=kwargs['nesterov'] or default_utterance_config.nesterov,
-        # clip=kwargs['clip'] or default_utterance_config.clip,
-        # batch_size = kwargs['batch_size'] or default_game_config.batch_size,
-        # temperature=kwargs['temperature'] or default_utterance_config.temperature)
+        fb_dir=kwargs['fb_dir'] or default_utterance_config.fb_dir,
+        one_sentence_mode=kwargs['one_sentence_data_set'] or default_utterance_config.one_sentence_mode
+    )
+
 
 
 def get_training_config(kwargs,folder_dir):
@@ -299,7 +296,9 @@ def get_training_config(kwargs,folder_dir):
             save_model=default_training_config.save_model,
             save_model_file= folder_dir + (kwargs['save_model_weights'] or default_training_config.save_model_file),
             use_cuda=kwargs['use_cuda'],
-            no_utterances=kwargs['no_utterances'],)
+            no_utterances=kwargs['no_utterances'],
+            optimizer=kwargs['optimizer'] or default_training_config.optimizer,
+    )
 
 
 def get_game_config(kwargs):
@@ -346,7 +345,8 @@ def get_agent_config(kwargs):
             movement_step_size=constants.MOVEMENT_STEP_SIZE,
             vocab_size=vocab_size,
             use_utterances=use_utterances,
-            use_cuda=use_cuda)
+            use_cuda=use_cuda,
+            language_loss_mode=kwargs['language_loss_mode'] or default_action_module_config.language_loss_mode)
     word_counter = WordCountingModuleConfig(
             vocab_size=vocab_size,
             oov_prob=oov_prob,
@@ -377,17 +377,10 @@ def get_run_config(kwargs):
         folder_dir = create_new_dir()
     else:
         folder_dir = default_run_config.folder_dir
-    if creating_data_set_mode:
-        # corpus = None
-        corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
+    corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
+    dir_upload_model = kwargs['dir_upload_model'] or DEFAULT_DIR_UPLOAD_MODEL
+    dir_upload_model = dir_upload_model + os.sep + DEFAULT_MODEL_FILE
 
-    else:
-        corpus = data.WordCorpus('data' + os.sep, freq_cutoff=20, verbose=True)
-    if upload_trained_model:
-        dir_upload_model = kwargs['dir_upload_model'] or DEFAULT_DIR_UPLOAD_MODEL
-        dir_upload_model = dir_upload_model + os.sep + DEFAULT_MODEL_FILE
-    else:
-        dir_upload_model = DEFAULT_DIR_UPLOAD_MODEL
     return RunModuleConfig(
         save_to_a_new_dir=save_to_a_new_dir,
         creating_data_set_mode=creating_data_set_mode,
@@ -421,3 +414,24 @@ def create_new_dir():
     os.makedirs(plots_dir)
 
     return folder_dir
+
+def save_config_info(*args):
+    print("Training with config:")
+    if 'config_info.txt' in os.listdir(args[0].folder_dir):
+        with open(args[0].folder_dir + os.sep +"config_info.txt", "a") as f:
+            for config in args:
+                f.write(str(config))
+                f.write('\n')
+                print(config)
+            f.write('-------')
+            f.write('\n')
+    else:
+        with open(args[0].folder_dir + os.sep +"config_info.txt", "w") as f:
+            for config in args:
+                f.write(str(config))
+                f.write('\n')
+                print(config)
+            f.write('-------')
+            f.write('\n')
+
+

@@ -59,28 +59,25 @@ class Plot:
         self.players_file_name = folder_dir + 'players.h5'
         self.sentence_file_name = folder_dir + 'sentence.h5'
         self.goals_by_landmark_file_name = folder_dir + 'goals_by_landmark.h5'
-        self.sentence_file_name_super = folder_dir + 'sentence_super.h5'
+        self.generated_utterances_file_name = folder_dir + 'generated_utterances.h5'
 
-    def save_utterance_matrix(self, utterance, iteration, mode = None):
-        if mode is None:
-            if iteration == 0:
-                self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, 13))
-            self.utterance_matrix[:,iteration+1, :, :] = utterance.detach().numpy()
-            if iteration == self.total_iteration -2:
-                if os.path.isfile(self.sentence_file_name):
+    def save_utterance_matrix(self, utterance, generated_utterances, iteration):
+        vcoab_size = utterance.size()[2]
+        if iteration == 0:
+            self.utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, vcoab_size))
+            self.generated_utterance_matrix = np.zeros(shape=(self.batch_num, self.total_iteration, self.num_agents, vcoab_size))
+        self.utterance_matrix[:,iteration+1, :, :] = utterance.detach().numpy()
+        self.generated_utterance_matrix[:,iteration+1, :, :] = generated_utterances.detach().numpy()
+
+        if iteration == self.total_iteration -2:
+            if os.path.isfile(self.sentence_file_name):
                     self.save_h5_file('a', utterance='ON')
-                else:
+                    self.save_h5_file('a', utterance='ON', mode_utter='generated_utterances')
+            else:
                     self.save_h5_file('w', utterance='ON')
-        else:
-            if iteration == 0:
-                self.utterance_super_matrix = np.zeros(
-                shape=(self.batch_num, self.total_iteration, self.num_agents, 13))
-            self.utterance_super_matrix[:, iteration+1, :, :] = utterance.detach().numpy()
-            if iteration == self.total_iteration-2:
-                if os.path.isfile(self.sentence_file_name_super):
-                    self.save_h5_file('a', utterance='ON',mode_utter='super')
-                else:
-                    self.save_h5_file('w', utterance='ON',mode_utter='super')
+                    self.save_h5_file('w', utterance='ON', mode_utter='generated_utterances')
+
+
 
     def save_h5_file(self, mode, utterance=None, mode_utter=None):
         if utterance is None:
@@ -92,7 +89,7 @@ class Plot:
         elif utterance is not None and mode_utter is None:
             save_dataset(self.sentence_file_name, 'sentence', self.utterance_matrix, mode)
         elif utterance is not None and mode_utter is not None:
-            save_dataset(self.sentence_file_name_super, 'sentence_super', self.utterance_super_matrix, mode)
+            save_dataset(self.generated_utterances_file_name, 'generated_utterances', self.generated_utterance_matrix, mode)
 
     def save_plot_matrix(self, iteration, locations, colors, shapes):
         if iteration == 'start':

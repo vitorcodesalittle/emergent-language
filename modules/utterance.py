@@ -7,7 +7,6 @@ from torch.autograd import Variable
 from torch import optim
 import numpy as np
 from modules.gumbel_softmax import GumbelSoftmax
-from configs import DEFAULT_VOCAB_SIZE
 import torch.nn.functional as F
 from modules.dialog_model import DialogModel
 from modules.modules_for_lm import Criterion
@@ -20,7 +19,6 @@ color_dict = {'red':0,
 color_dict_trans = {0:'red',
               1:'blue',
               2:'green'}
-crit = torch.LongTensor(size=[16])
 class Utterance(nn.Module):
     def __init__(self, action_processor_config, utterance_config, dataset_dictionary, use_utterance_old_code):
         super(Utterance, self).__init__()
@@ -44,9 +42,13 @@ class Utterance(nn.Module):
                                     None, 4,
                                     utterance_config,
                                     None, self.action_processor_config.mode)
-        # if not self.action_processor_config.mode == 'train_utter': #todo reacrivate
-        #     with open(utterance_config.folder_dir+'lm_model.pt', 'rb') as f:
-        #         self.lm_model.load_state_dict(torch.load(f))
+
+        self.encoded_pad = self.dataset_dictionary.word_dict.w2i(['<pad>'])
+        self.vocab_size = action_processor_config.vocab_size
+        self.batch_size = utterance_config.batch_size
+        self.temp = utterance_config.temperature
+        self.language_loss_mode = action_processor_config.language_loss_mode
+
         self.colors_dict_keys = [self.lm_model.word_dict.word2idx[color] for color in colors_dict]
         self.shapes_dict_keys = [self.lm_model.word_dict.word2idx[shape] for shape in shapes_dict]
         annotation = [[self.lm_model.word_dict.word2idx['red']],
@@ -57,137 +59,98 @@ class Utterance(nn.Module):
         self.crit_blue = Criterion(dataset_dictionary.word_dict, device_id=None, annotation =[annotation[1]], state='colors')
         self.crit_green = Criterion(dataset_dictionary.word_dict, device_id=None, annotation =[annotation[2]], state='colors')
         self.crit_red = Criterion(dataset_dictionary.word_dict, device_id=None, annotation =[annotation[0]], state='colors')
+        # self.crit = Criterion(dataset_dictionary.word_dict, device_id=None) #original crit line
 
-        self.loss_status = 'batch'
-
-        # self.crit = Criterion(dataset_dictionary.word_dict, device_id=None)
-
-        self.opt = optim.Adam(self.lm_model.parameters(), lr=utterance_config.lr)
-        self.config = utterance_config
-        # self.loss = torch.zeros(size=(1,))
-    def forward(self, processed, full_sentence, folder_dir, step=None, epoch=None):
+    def forward(self, processed, generated_utterances, folder_dir):
         self.loss = torch.zeros(size=(1,))
-        self.words = torch.LongTensor(size=[self.config.batch_size, DEFAULT_VOCAB_SIZE])
+        self.translated_utter = torch.LongTensor(size=[self.batch_size, self.vocab_size])
         self.lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.config.nhid_lang)
-        utter = full_sentence.tolist()
-        encoded_utter = [self.dataset_dictionary.word_dict.w2i(utter[i].split(" "))
-                         for i in range(len(full_sentence))]
-        encoded_pad = self.dataset_dictionary.word_dict.w2i(['<pad>'])
-        longest_sentence = DEFAULT_VOCAB_SIZE
-        encoded_utter = [encoded_utter[i] + encoded_pad * (longest_sentence - len(encoded_utter[i]))
-                         if len(encoded_utter[i]) < longest_sentence else encoded_utter[i]
-                         for i in range(len(full_sentence))]
+
+        #encode the_generated utterances, using corpus dict.
+        encoded_utter = [self.dataset_dictionary.word_dict.w2i(generated_utterances[i].split(" "))
+                         for i in range(len(generated_utterances))]
+        encoded_utter = [encoded_utter[i] + self.encoded_pad * (self.vocab_size - len(encoded_utter[i]))
+                         if len(encoded_utter[i]) < self.vocab_size else encoded_utter[i]
+                         for i in range(len(generated_utterances))]
         encoded_utter = Variable(torch.LongTensor(np.array(encoded_utter)))
-        encoded_utter_out = encoded_utter
+        encoded_utter_save = encoded_utter
         encoded_utter = encoded_utter.transpose(0, 1)
         encoded_utter = encoded_utter.contiguous()
         inpt = encoded_utter.narrow(0, 0, encoded_utter.size(0) - 1)
         self.tgt = encoded_utter.narrow(0, 1, encoded_utter.size(0) - 1).view(-1)
-
         if self.action_processor_config.mode == 'train_em':
             out, lang_h = self.lm_model.forward_lm(inpt, self.lang_h, processed.unsqueeze(0))
-            # if epoch%20 == 0 and (epoch <= 1000 and epoch >200):
-                # if self.loss_status == 'batch'  or self.loss_status == 'batch_color':
-                #     self.loss_status = 'sentence_color'
-                # else:
-                #     self.loss_status = 'batch'
-            # elif epoch%30 == 0 and epoch > 200:
-            #     if self.loss_status == 'batch' or self.loss_status == 'batch_color':
-            #         self.loss_status = 'word_color'
-            #     else:
-            #         self.loss_status = 'batch_color'
-            # if self.loss_status == 'batch':
-            loss = self.crit(out.view(-1, len(self.dataset_dictionary.word_dict)), self.tgt)
-            # elif self.loss_status == 'batch_color':
-            #     loss = self.crit_colors(out.view(-1, len(self.dataset_dictionary.word_dict)), self.tgt)
-            # else:
-            #     loss = self.crit_colors(out.view(-1, len(self.dataset_dictionary.word_dict)), self.tgt)
-            # decode utterance (for plot and for us)
-            # try 1 with for loop
-            for batch in range(self.config.batch_size):
-                self.words[batch, 0] = self.lm_model.word2var('Hi').unsqueeze(1)
-                for word_idx in range(0, DEFAULT_VOCAB_SIZE - 1):  # with out the Hi
+            if self.language_loss_mode == 'None':
+                loss = self.crit(out.view(-1, len(self.dataset_dictionary.word_dict)), self.tgt)
+            elif self.language_loss_mode == 'weighted_colors':
+                loss = self.crit_colors(out.view(-1, len(self.dataset_dictionary.word_dict)), self.tgt)
+            else:
+                pass
+
+            # translate the sentences from encoded numbers to actual words according to our dict
+            for batch in range(self.batch_size):
+                self.translated_utter[batch, 0] = self.lm_model.word2var('Hi').unsqueeze(1)
+                for word_idx in range(0, self.vocab_size - 1):  # with out the Hi
                     scores = out[word_idx, batch].add(-out[word_idx, batch].max().item())
                     prob = F.softmax(scores, dim=0)
                     word = prob.multinomial(num_samples=1).detach()
-                    self.words[batch, word_idx + 1] = word
-                    # if self.loss_status == 'word':
-                    #     if word_idx == 0 and batch == 0:
-                    #         loss = self.crit(out[word_idx,batch].unsqueeze(0), self.tgt[word_idx + word_idx*batch].unsqueeze(0))
-                    #     else:
-                    #         loss += self.crit(out[word_idx,batch].unsqueeze(0), self.tgt[word_idx + word_idx*batch].unsqueeze(0))
-                    # elif self.loss_status == 'word_color':
-                    #     if word_idx == 0 and batch == 0:
-                    #         loss =  self.crit_colors(out[word_idx, batch].unsqueeze(0),
-                    #                          self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                    #     else:
-                    #         loss +=  self.crit_colors(out[word_idx, batch].unsqueeze(0),
-                    #                           self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                # if self.loss_status == 'sentence_color':
-                #     if batch == 0:
-                #         if 'green' in utter[batch]:
-                #             loss = self.crit_green(out[word_idx, batch].unsqueeze(0),
-                #                                self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                #             crit[batch] = color_dict['green']
-                #         elif 'red' in utter[batch]:
-                #             loss = self.crit_red(out[word_idx, batch].unsqueeze(0),
-                #                                self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                #             crit[batch] = color_dict['red']
-                #         else:
-                #             loss = self.crit_blue(out[word_idx, batch].unsqueeze(0),
-                #                                  self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                #             crit[batch] = color_dict['blue']
-                #     else:
-                #         if 'green' in utter[batch]:
-                #             loss += self.crit_green(out[word_idx, batch].unsqueeze(0),
-                #                                self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                #             crit[batch] = color_dict['green']
-                #         elif 'red' in utter[batch]:
-                #             loss += self.crit_red(out[word_idx, batch].unsqueeze(0),
-                #                                self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                #             crit[batch] = color_dict['red']
-                #         else:
-                #             loss += self.crit_blue(out[word_idx, batch].unsqueeze(0),
-                #                                  self.tgt[word_idx + word_idx * batch].unsqueeze(0))
-                #             crit[batch] = color_dict['blue']
+                    self.translated_utter[batch, word_idx + 1] = word
+                    if self.language_loss_mode == 'word loss':
+                        if word_idx == 0 and batch == 0:
+                            loss = self.crit(out[word_idx,batch].unsqueeze(0), self.tgt[word_idx + word_idx*batch].unsqueeze(0))
+                        else:
+                            loss += self.crit(out[word_idx,batch].unsqueeze(0), self.tgt[word_idx + word_idx*batch].unsqueeze(0))
+                    elif self.language_loss_mode == 'word loss colors':
+                        if word_idx == 0 and batch == 0:
+                            loss =  self.crit_colors(out[word_idx, batch].unsqueeze(0),
+                                             self.tgt[word_idx + word_idx * batch].unsqueeze(0))
+                        else:
+                            loss +=  self.crit_colors(out[word_idx, batch].unsqueeze(0),
+                                              self.tgt[word_idx + word_idx * batch].unsqueeze(0))
+                    elif self.language_loss_mode == 'weighted specific colors':
+                        if 'green' in generated_utterances[batch]:
+                            if word_idx == 0 and batch == 0:
+                                loss = self.crit_green(out[word_idx, batch].unsqueeze(0),
+                                               self.tgt[word_idx + word_idx * batch].unsqueeze(0))
+                            else:
+                                loss += self.crit_green(out[word_idx, batch].unsqueeze(0),
+                                                       self.tgt[word_idx + word_idx * batch].unsqueeze(0))
+                        elif 'red' in generated_utterances[batch]:
+                            if word_idx == 0 and batch == 0:
+                                loss = self.crit_red(out[word_idx, batch].unsqueeze(0),
+                                               self.tgt[word_idx + word_idx * batch].unsqueeze(0))
+                            else:
+                                loss += self.crit_red(out[word_idx, batch].unsqueeze(0),
+                                                     self.tgt[word_idx + word_idx * batch].unsqueeze(0))
+                        else:
+                            if word_idx == 0 and batch == 0:
+                                loss = self.crit_blue(out[word_idx, batch].unsqueeze(0),
+                                                 self.tgt[word_idx + word_idx * batch].unsqueeze(0))
+                            else:
+                                loss += self.crit_blue(out[word_idx, batch].unsqueeze(0),
+                                                      self.tgt[word_idx + word_idx * batch].unsqueeze(0))
 
         else:
             # create initial hidden state for the language rnn and self_words
             self.lang_hs = []
             self.write(self.lang_h, processed.unsqueeze(0)) #undecoded utter, to decode it use: self._decode(utter, self.lm_model.word_dict)
-        utter_print = '' ##remove
-        utter_print = self.lm_model.word_dict.i2w(self.words[1].data.cpu()) # [str(self.total_loss)]
+        utter_print = self.lm_model.word_dict.i2w(self.translated_utter[1].data.cpu())
         utter_print = ' '.join(utter_print)
         if self.action_processor_config.mode == 'train_em':
-            with open(folder_dir+os.sep+"utterance_out_fb.csv", 'a', newline='') as f:
+            with open(folder_dir+os.sep+"utterance_out.csv", 'a', newline='') as f:
                 f.write(utter_print)
                 f.write('-----')
-                f.write(utter[1])
+                f.write(generated_utterances[1])
                 f.write('\n')
-            # if epoch in [100, 200, 300, 400, 500, 600]:
-            #     for param_group in self.opt.param_groups:
-            #         param_group['lr'] = param_group['lr'] * 0.01
-            #         print(param_group['lr'])
-
-
-            # self.opt.zero_grad()
-            # # backward step with gradient clipping, use retain_graph=True
-            # loss.backward()
-            # torch.nn.utils.clip_grad_norm_(self.lm_model.parameters(),
-            #                                self.config.clip)
-            # self.opt.step()
-            # with open(self.config.folder_dir+os.sep+'lm_model.pt', 'wb') as f:
-            #     torch.save(self.lm_model.state_dict(), f)
-            # print(loss, epoch)
-            return loss, self.words , self.config.folder_dir
+            return loss, self.translated_utter, encoded_utter_save
         else:
-            with open(self.config.folder_dir+os.sep+"utterance_out_fine_tune.csv", 'a', newline='') as f:
+            with open(folder_dir+os.sep+"utterance_out_fine_tune.csv", 'a', newline='') as f:
                 f.write(utter_print)
                 f.write('\n')
             self.opt.zero_grad()
             # print(self.total_loss)
             # print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
-            return self.loss, self.words, encoded_utter_out
+            return self.loss, self.words, encoded_utter_save
 
     def create_utterance_using_old_code(self, training, processed):
         utter = self.utterance_chooser(processed)
@@ -205,8 +168,8 @@ class Utterance(nn.Module):
     def write(self, lang_h, processed):
         # generate a new utterance #todo Start HERE!
         self.lang_h = lang_h
-        outs, self.lang_h, lang_hs, self.loss = self.lm_model.write(self.lang_h, processed, DEFAULT_VOCAB_SIZE-1 ,
-                                                               self.config.temperature, self.loss, self.tgt)
+        outs, self.lang_h, lang_hs, self.loss = self.lm_model.write(self.lang_h, processed, self.vocab_size-1 ,
+                                                               self.temp, self.loss, self.tgt)
         # if self.step == 0:
         #     self.total_loss = self.crit(scores.view(-1, len(self.dataset_dictionary.word_dict.idx2word)), self.tgt)
         #     # print(id(scores))

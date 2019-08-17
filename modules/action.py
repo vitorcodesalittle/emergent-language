@@ -33,13 +33,8 @@ class ActionModule(nn.Module):
                 nn.Tanh())
         if self.using_utterances:
             self.utter = Utterance(config, utterance_config, dataset_dictionary, use_old_utterance_code)
-        #
-        # if not config.mode == "train_utter": #todo reactivate
-        #     folder_dir_fb_model = utterance_config.fb_dir
-        #     with open(folder_dir_fb_model, 'rb') as f:
-        #         self.utter.load_state_dict(torch.load(f))
 
-    def processed_data(self, physical, goal, mem, utterance_feat=None):
+    def processed_data(self, physical, goal, mem, utterance_feat):
         goal_processed, _ = self.goal_processor(goal, mem)
         if self.using_utterances:
             x = torch.cat(
@@ -50,22 +45,22 @@ class ActionModule(nn.Module):
         processed, mem = self.processor(x, mem)
         return processed, mem
 
-    def forward(self, physical, goal, mem, training, use_old_utterance_code, full_sentence,folder_dir, utterance_feat=None ):
+    def forward(self, physical, goal, mem, training, use_old_utterance_code, generated_utterances
+                ,folder_dir, utterance_feat):
         processed, mem = self.processed_data(physical, goal, mem, utterance_feat) #what is the goal in this point
         movement = self.movement_chooser(processed)
         if self.using_utterances:
             if use_old_utterance_code:
                 utter = self.utter.create_utterance_using_old_code(training, processed)
             else:
-                total_loss, utter, utter_super = self.utter(processed, full_sentence, None)
-
+                utter_loss, utter, generated_utterances_encoded = self.utter(processed, generated_utterances, folder_dir)
         else:
             utter = None
         # final_movement = (movement * 2 * self.movement_step_size) - self.movement_step_size
         final_movement = movement * self.movement_step_size
 
         if use_old_utterance_code:
-            return  final_movement, utter, mem, None, None
+            return  final_movement, utter, mem, None
         else:
-            return final_movement, utter, mem, total_loss, utter_super
+            return final_movement, utter, mem, utter_loss, generated_utterances_encoded
 

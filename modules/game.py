@@ -32,7 +32,6 @@ class GameModule(nn.Module):
 
     def __init__(self, config, num_agents, num_landmarks, folder_dir):
         super(GameModule, self).__init__()
-
         self.batch_size = config.batch_size # scalar: num games in this batch
         self.using_utterances = config.use_utterances # bool: whether current batch allows utterances
         self.using_cuda = config.use_cuda
@@ -128,9 +127,9 @@ class GameModule(nn.Module):
     Returns:
         - scalar: total cost of all games in the batch
     """
-    def forward(self, movements, goal_predictions, utterances, t, utterance_super):
+    def forward(self, movements, goal_predictions, utterances, t, generated_utterances_encoded):
         self.locations = self.locations + movements
-        self.plots_matrix.save_plot_matrix(t, self.locations, self.colors, self.shapes) ####
+        self.plots_matrix.save_plot_matrix(t, self.locations, self.colors, self.shapes)
         agent_baselines = self.locations[:, :self.num_agents]
         self.observations = self.locations.unsqueeze(1)- agent_baselines.unsqueeze(2)
         new_obs = self.goals[:,:,:2] - agent_baselines
@@ -138,13 +137,12 @@ class GameModule(nn.Module):
         self.observed_goals = torch.cat((new_obs, goal_agents), dim=2)
         if self.using_utterances:
             self.utterances = utterances
-            self.plots_matrix.save_utterance_matrix(utterances, t) ####
-            self.plots_matrix.save_utterance_matrix(utterance_super,t, mode='super')
-            return self.compute_cost(movements, goal_predictions, utterances)
+            self.plots_matrix.save_utterance_matrix(utterances, generated_utterances_encoded, t)
+            return self.compute_cost(movements, goal_predictions)
         else:
             return self.compute_cost(movements, goal_predictions)
 
-    def compute_cost(self, movements, goal_predictions, utterances=None):
+    def compute_cost(self, movements, goal_predictions):
         physical_cost = self.compute_physical_cost()
         movement_cost = self.compute_movement_cost(movements)
         goal_pred_cost = self.compute_goal_pred_cost(goal_predictions)

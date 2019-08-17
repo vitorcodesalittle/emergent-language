@@ -7,14 +7,12 @@ import torch
 from modules import plot
 from modules.agent import AgentModule
 from modules.game import GameModule
+#todo the new version of pytorch support tensorboard so we don't need to use tensobord x
 from tensorboardX import SummaryWriter  # the tensorboardX is installed in the anaconda console
 from torch.optim import RMSprop
 from torch import optim
-
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-
 import configs
-import create_plots  # for the file dir function
 
 parser = argparse.ArgumentParser(description="Trains the agents for cooperative communication task")
 parser.add_argument('--no-utterances', action='store_true', help='if specified disables the communications channel (default enabled)')
@@ -43,21 +41,40 @@ parser.add_argument('--create-utterance-using-old-code', type=bool, help='use wh
 parser.add_argument('--one-sentence-data-set', action='store_true', default=False, help='temp, train the mini FC network on one setuation')
 parser.add_argument('--fb-dir', required=False, type=str, help='if specified FB will be fine tuned ussing the reward loss, the fb model weight will be taken from the specifed dir')
 parser.add_argument('--mode', required=False, type=str, help='selfplay/train_em/train_utter')
+parser.add_argument('--optimizer', required=False, type=str, help='adam/nestrov/RMSprop default is set to be Adam')
+parser.add_argument('--language_loss_mode', required=False, type=str, help='None/word loss colors/word loss/weighted_colors/weighted specific colors default: None')
 
 
-def print_losses(epoch, losses, dists, game_config, writer, loss_language, loss_game):
+def save_losses(epoch, losses, dists, game_config, writer, loss_language, loss_game,folder_dir):
     for a in range(game_config.min_agents, game_config.max_agents + 1):
         for l in range(game_config.min_landmarks, game_config.max_landmarks + 1):
             loss = losses[a][l][-1] if len(losses[a][l]) > 0 else 0
             min_loss = min(losses[a][l]) if len(losses[a][l]) > 0 else 0
             dist = dists[a][l][-1] if len(dists[a][l]) > 0 else 0
             min_dist = min(dists[a][l]) if len(dists[a][l]) > 0 else 0
+            #add data for tensorboard
             writer.add_scalar('Loss,' + str(a) + 'agents,' + str(l) + 'landmarks' , loss, epoch) #data for Tensorboard
             writer.add_scalar('dist,' + str(a) + 'agents,' + str(l) + 'landmarks' , dist, epoch) #data for TensorBoard
             writer.add_scalar('loss_language,' + str(a) + 'agents,' + str(l) + 'landmarks', loss_language, epoch)
             writer.add_scalar('loss_game,' + str(a) + 'agents,' + str(l) + 'landmarks', loss_game, epoch)
-            print("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f][min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
-    print("_________________________")
+
+            print("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f]"
+                  "[min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
+            if 'loss_dist_info.txt' in os.listdir(folder_dir):
+                with open(folder_dir + os.sep + "loss_dist_info.txt", "a") as f:
+                    f.write("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f]"
+                            "[min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
+                    f.write('\n')
+            else:
+                with open(folder_dir + os.sep + "loss_dist_info.txt", "w") as f:
+                    f.write("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f]"
+                            "[min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
+                    f.write('\n')
+
+        print("_________________________")
+        with open(folder_dir + os.sep + "loss_dist_info.txt", "a") as f:
+            f.write ("_________________________")
+            f.write('\n')
 
 
 def main():
@@ -66,14 +83,12 @@ def main():
     agent_config = configs.get_agent_config(args)
     game_config = configs.get_game_config(args)
     training_config = configs.get_training_config(args, run_config.folder_dir)
-    utterance_config = configs.get_utterance_config()
-    print("Training with config:")
-    print(training_config)
-    print(game_config)
-    print(agent_config)
-    print(run_config)
+    utterance_config = configs.get_utterance_config(args)
+
+    #save the config data into a file + print the data to the console
+    configs.save_config_info(run_config, agent_config, game_config, training_config, utterance_config)
     writer = SummaryWriter(run_config.folder_dir + 'tensorboard' + os.sep)  #Tensorboard - setting where the temp files will be saved
-    agent = AgentModule(agent_config, utterance_config, run_config.corpus, run_config.creating_data_set_mode, run_config.create_utterance_using_old_code)
+    agent = AgentModule(agent_config, utterance_config, run_config)
     if run_config.upload_trained_model:
         folder_dir_trained_model = run_config.dir_upload_model
         agent.load_state_dict(torch.load(folder_dir_trained_model))
@@ -82,45 +97,49 @@ def main():
         pass
     if training_config.use_cuda:
         agent.cuda()
-    optimizer = optim.Adam(agent.parameters(), lr=utterance_config.lr)
-    # optimizer = RMSprop(agent.parameters(), lr=training_config.learning_rate)
+    if training_config.optimizer=='Adam':
+        optimizer = optim.Adam(agent.parameters(), lr=training_config.learning_rate)
+    else:
+        optimizer = RMSprop(agent.parameters(), lr=training_config.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True, cooldown=5)
     losses = defaultdict(lambda: defaultdict(list))
     dists = defaultdict(lambda: defaultdict(list))
-    if args['one_sentence_data_set']:
+    if utterance_config.one_sentence_mode:
         num_agents = np.random.randint(game_config.min_agents, game_config.max_agents + 1)
         num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks + 1)
         agent.reset()
-        game_init = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
-
+        game = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
     for epoch in range(training_config.num_epochs):
-        if args['one_sentence_data_set'] == False:
+        if utterance_config.one_sentence_mode == False:
             num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)
             num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks+1)
             agent.reset()
             game = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
         else:
             agent.reset()
-            game = game_init
         if training_config.use_cuda:
             game.cuda()
-        optimizer.zero_grad()
 
-        total_loss, _, language_loss, dist_loss = agent(game, epoch)
+        optimizer.zero_grad()
+        total_loss, _, dist_loss, language_loss= agent(game, epoch)
+
+        #calculate loss per agent
         per_agent_loss = total_loss.data[0] / num_agents / game_config.batch_size
+        per_agent_loss_dist = dist_loss / num_agents / game_config.batch_size
+        per_agent_loss_utter = language_loss / num_agents / game_config.batch_size
         losses[num_agents][num_landmarks].append(per_agent_loss)
 
+        #Calculate agent dist form the goal + save the data
         dist, dist_per_agent = game.get_avg_agent_to_goal_distance() #add to tensorboard
         dist_per_agent_file_name = run_config.folder_dir + 'dist_from_goal.h5'
         if os.path.isfile(dist_per_agent_file_name):
             plot.save_dataset(dist_per_agent_file_name, 'dist_from_goal', dist_per_agent.detach().numpy(), 'a')
         else:
             plot.save_dataset(dist_per_agent_file_name, 'dist_from_goal', dist_per_agent.detach().numpy(), 'w')
-
         avg_dist = dist.data.item() / num_agents / game_config.batch_size
         dists[num_agents][num_landmarks].append(avg_dist)
 
-        print_losses(epoch, losses, dists, game_config, writer, language_loss, dist_loss)
+        save_losses(epoch, losses, dists, game_config, writer, language_loss, dist_loss, run_config.folder_dir)
         torch.autograd.set_detect_anomaly(True)
         total_loss.backward()
         optimizer.step()
@@ -137,7 +156,6 @@ def main():
     import code
     code.interact(local=locals())
     """
-
 
 if __name__ == "__main__":
     main()
