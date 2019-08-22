@@ -18,7 +18,7 @@ DEFAULT_MODEL_FILE = 'modules_weights.pt'
 DEFAULT_HIDDEN_SIZE = 256
 DEFAULT_DROPOUT = 0.5
 DEFAULT_FEAT_VEC_SIZE = 256
-DEFAULT_TIME_HORIZON = 16
+DEFAULT_TIME_HORIZON = 1 #16
 
 USE_UTTERANCES = False
 PENALIZE_WORDS = True
@@ -33,7 +33,7 @@ MAX_LANDMARKS = 3
 MIN_AGENTS = 2
 MIN_LANDMARKS = 3
 NUM_COLORS = 3
-NUM_SHAPES = 2
+NUM_SHAPES = 3
 
 DEFAULT_UPLOAD_TRAINED_MODEL = False
 DEFAULT_DIR_UPLOAD_MODEL = ""
@@ -55,7 +55,7 @@ DEFAULT_MOMENTUM = 0.1
 DEFAULT_NESTEROV = False
 DEFAULT_CLIP = 0.5
 DEFAULT_TEMPERATURE = 0.5
-DEFAULT_ONE_SENTENCE_MODE = False
+DEFAULT_TINY_DATASET_MODE = False
 DEFAULT_LANGUAGE_LOSS_MODE = 'None'
 
 UtteranceConfig = NamedTuple('UtteranceConfig', [
@@ -71,7 +71,7 @@ UtteranceConfig = NamedTuple('UtteranceConfig', [
     ('batch_size', int),
     ('temperature', float),
     ('fb_dir', str),
-    ('one_sentence_mode', bool),
+    ('tiny_dataset_mode', bool),
 ])
 
 
@@ -265,7 +265,7 @@ default_utterance_config = UtteranceConfig(
         batch_size=default_game_config.batch_size,
         temperature=DEFAULT_TEMPERATURE,
         fb_dir=DEFAULT_FB_DIR,
-        one_sentence_mode=DEFAULT_ONE_SENTENCE_MODE)
+        tiny_dataset_mode=DEFAULT_TINY_DATASET_MODE)
 
 
 def get_utterance_config(kwargs):
@@ -282,7 +282,7 @@ def get_utterance_config(kwargs):
         batch_size=kwargs['batch_size'] or default_game_config.batch_size,
         temperature=default_utterance_config.temperature,
         fb_dir=kwargs['fb_dir'] or default_utterance_config.fb_dir,
-        one_sentence_mode=kwargs['one_sentence_data_set'] or default_utterance_config.one_sentence_mode
+        tiny_dataset_mode=kwargs['tiny_dataset'] or default_utterance_config.tiny_dataset_mode
     )
 
 

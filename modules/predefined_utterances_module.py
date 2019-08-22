@@ -6,13 +6,13 @@ import re
 
 
 colors_dict = ['red', 'green', 'blue']
-shapes_dict = ['circle', 'triangle']
+shapes_dict = ['circle', 'triangle', 'square']
 start_token = 'Hi'
 end_token = '<eos>'
 
 
 goto_sentences = [
-    "<agent_color> agent go to <lm_color> <lm_shape> landmark"]
+    "<agent_color> agent go to <lm_shape> landmark"]
     # "<agent_color> <agent_shape> agent go to <lm_color> <lm_shape> landmark",
     # "<agent_shape> agent go to <lm_shape> landmark",
     # "<agent_color> agent go to <lm_shape> landmark",
@@ -20,7 +20,7 @@ goto_sentences = [
 
 continue_sentences = [
     'good job continue to the direction of your landmark <agent_color>',
-    'continue to your <lm_color> <lm_shape> landmark <agent_color> agent']
+    'continue to your <lm_shape> landmark <agent_color> agent']
     # "<agent_color> agent continue",
     # "<agent_color> <agent_shape> agent continue",
     # "<agent_shape> agent continue",
@@ -32,7 +32,7 @@ stay_sentences = [
     "<agent_shape> agent stay"]
 
 done_sentences = [
-    'well done <agent_color> agent you had reach your destination']
+    'well done <agent_color> agent you have reached your destination']
     # "<agent_color> agent is done",
     # "<agent_color> <agent_shape> agent is done",
     # "<agent_shape> agent is done",
@@ -41,8 +41,8 @@ done_sentences = [
     # "<agent_shape> good job",
     # "you go girl"]
 
-# sentence_pool = goto_sentences + continue_sentences
-# sentence_pool = [continue_sentences[0]]
+sentence_pool = goto_sentences + continue_sentences
+sentence_pool = [continue_sentences[0]]
 # sentence_pool_1 = [continue_sentences[1]]
 
 sentence_form = goto_sentences + continue_sentences+stay_sentences+done_sentences
@@ -57,9 +57,9 @@ class PredefinedUtterancesModule():
         self.continue_sentences = continue_sentences
         self.goto_sentences = goto_sentences
     @staticmethod
-    def generate_single_sentence(row, iter, one_sentence_mode):
+    def generate_single_sentence(row, iter, tiny_dataset_mode):
         row = row
-        if one_sentence_mode:
+        if tiny_dataset_mode:
             sentence_list = ['Hi ' + colors_dict[int(row['agent_color'])] + ' agent go to ' +
                              colors_dict[int(row['lm_color'])] + ' landmark <eos>' ]
             # sentence_list = ['Hi blue agent go to green landmark <eos>']
@@ -102,14 +102,14 @@ class PredefinedUtterancesModule():
             df_utterance = pd.DataFrame(data=data, dtype=np.int64)
         df_utterance['dist'] = np.around(dist.detach().numpy(),2)
         df_utterance['Full Sentence' + str(iter)] = df_utterance.apply(
-            lambda row: PredefinedUtterancesModule.generate_single_sentence(row, iter, self.one_sentence_mode), axis=1, reduce=False )
+            lambda row: PredefinedUtterancesModule.generate_single_sentence(row, iter, self.tiny_dataset_mode), axis=1, reduce=False )
         return df_utterance
 
-    def generate_sentences(self, game, iter, list_df_utterance, one_sentence_mode, mode=None): #Todo False
-        self.one_sentence_mode = one_sentence_mode
+    def generate_sentences(self, game, iter, list_df_utterance, tiny_dataset_mode, mode=None): #Todo False
+        self.tiny_dataset_mode = tiny_dataset_mode
         if mode == "train_em":
             dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
-        elif self.one_sentence_mode:
+        elif self.tiny_dataset_mode:
             dist_from_goal = torch.ones(size=(game.batch_size,2,2),dtype=torch.float64)
             dist_from_goal = dist_from_goal.new_full((game.batch_size,2,2),3.141592)
         else:
@@ -166,7 +166,7 @@ class PredefinedUtterancesModule():
             dataset_log.to_csv(f, mode='a', header=False, index=False)
 
 
-    def generate_dataset(self, game, iter, one_sentence_mode):
+    def generate_dataset(self, game, iter, tiny_dataset_mode):
         generated_utterance = []
         batch_size = game.batch_size
         dist_from_goal = game.locations[:, :game.num_agents, :] - game.sorted_goals
@@ -179,11 +179,11 @@ class PredefinedUtterancesModule():
                 [colors[btz, game.goal_entities[btz, i]] for btz in range(batch_size)]).unsqueeze(1)
             shape_lm = torch.FloatTensor(
                 [shapes[btz, game.goal_entities[btz, i]] for btz in range(batch_size)]).unsqueeze(1)
-            if one_sentence_mode and iter==0:
-                self.continue_sentences = random.choice(self.continue_sentences)
-                self.goto_sentences = random.choice(self.goto_sentences)
-                self.done_sentences = random.choice(self.done_sentences)
-                self.stay_sentences = random.choice(self.stay_sentences)
+            if tiny_dataset_mode and iter==0:
+                self.continue_sentences = [random.choice(self.continue_sentences)]
+                self.goto_sentences = [random.choice(self.goto_sentences)]
+                self.done_sentences = [random.choice(self.done_sentences)]
+                self.stay_sentences = [random.choice(self.stay_sentences)]
             for batch in range(batch_size):
                 dist = euclidean_distance[batch,i]
                 if iter == 0:

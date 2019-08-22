@@ -5,7 +5,7 @@ vocab = ['go', 'to', 'agent', 'red', 'green', 'blue', 'landmark', 'circle',
          'goal']
 
 colors = ['red', 'green', 'blue']
-shapes = ['circle', 'triangle']
+shapes = ['circle', 'triangle', 'square']
 
 
 goto_sentences= [

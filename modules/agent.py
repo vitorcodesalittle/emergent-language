@@ -35,7 +35,7 @@ class AgentModule(nn.Module):
                 self.word_counter = WordCountingModule(config.word_counter)
         if self.create_data_set_mode:
             self.create_data_set = PredefinedUtterancesModule()
-        self.one_sentence_mode = utterance_config.one_sentence_mode
+        self.tiny_dataset_mode = utterance_config.tiny_dataset_mode
 
     def init_from_config(self, config):
         self.training = True
@@ -121,14 +121,15 @@ class AgentModule(nn.Module):
                 utterances = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
                 self.generated_utterances_encoded = Variable(self.Tensor(game.batch_size, game.num_agents, self.vocab_size))
                 goal_predictions = Variable(self.Tensor(game.batch_size, game.num_agents, game.num_agents, self.goal_size))
-                # self.df_utterance = self.create_data_set.generate_sentences(game, t, self.df_utterance, self.one_sentence_mode, mode=self.mode)
-                generated_utterances = self.create_data_set.generate_dataset(game, t, self.one_sentence_mode)
+                # self.df_utterance = self.create_data_set.generate_sentences(game, t, self.df_utterance, self.tiny_dataset_mode, mode=self.mode)
+                generated_utterances = self.create_data_set.generate_dataset(game, t, self.tiny_dataset_mode)
             for agent in range(game.num_agents):
                 physical_feat = self.get_physical_feat(game, agent)
                 utterance_feat = self.get_utterance_feat(game, agent, goal_predictions)
                 self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances, generated_utterances[agent])
 
             cost = game(movements, goal_predictions, utterances, t, self.generated_utterances_encoded)
+            cost = 0
             # if self.penalizing_words:
             #     cost = cost + self.word_counter(utterances)
 
@@ -139,7 +140,6 @@ class AgentModule(nn.Module):
                 self.total_cost = self.total_cost + cost + (300 * self.utter_loss)
             else:
                 self.total_cost = self.total_cost + cost + (1000 * self.utter_loss)
-
             if not self.training:
                 timesteps.append({
                     'locations': game.locations,

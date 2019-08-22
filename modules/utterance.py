@@ -12,7 +12,7 @@ from modules.dialog_model import DialogModel
 from modules.modules_for_lm import Criterion
 
 colors_dict = ['red', 'green', 'blue']
-shapes_dict = ['circle', 'triangle']
+shapes_dict = ['circle', 'triangle', 'square']
 color_dict = {'red':0,
               'blue':1,
               'green':2}
@@ -62,7 +62,7 @@ class Utterance(nn.Module):
         # self.crit = Criterion(dataset_dictionary.word_dict, device_id=None) #original crit line
 
     def forward(self, processed, generated_utterances, folder_dir):
-        self.loss = torch.zeros(size=(1,))
+        # self.loss = torch.zeros(size=(1,))
         self.translated_utter = torch.LongTensor(size=[self.batch_size, self.vocab_size])
         self.lang_h = self.lm_model.zero_hid(processed.size(0), self.lm_model.config.nhid_lang)
 
@@ -150,7 +150,7 @@ class Utterance(nn.Module):
             self.opt.zero_grad()
             # print(self.total_loss)
             # print(self.dataset_dictionary.word_dict.i2w(word[1, :]))
-            return self.loss, self.words, encoded_utter_save
+            return loss, self.words, encoded_utter_save
 
     def create_utterance_using_old_code(self, training, processed):
         utter = self.utterance_chooser(processed)

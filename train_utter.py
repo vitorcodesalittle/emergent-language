@@ -17,7 +17,7 @@ from train import parser
 
 #to delete after testing utterance relvance
 colors_dict = ['red', 'green', 'blue']
-shapes_dict = ['circle', 'triangle']
+shapes_dict = ['circle', 'triangle', 'square']
 
 def main():
     args = vars(parser.parse_args())

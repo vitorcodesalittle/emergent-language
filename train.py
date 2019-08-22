@@ -38,7 +38,7 @@ parser.add_argument('--dir-upload-model', required=False, type=str, help='Direct
 parser.add_argument('--save-to-a-new-dir', required=False, type=bool, help='define if we want to save the info in a new dir or are we in debag mode and all of the data weill be moved to debag folder')
 parser.add_argument('--creating-data-set-mode', required=False, type=bool, help='define if we are in create dataset mode or not')
 parser.add_argument('--create-utterance-using-old-code', type=bool, help='use when we want to create dataset, or create the trained model that the dataset code willuse ')
-parser.add_argument('--one-sentence-data-set', action='store_true', default=False, help='temp, train the mini FC network on one setuation')
+parser.add_argument('--tiny-dataset', type=bool, help='temp, train the mini FC network on one setuation')
 parser.add_argument('--fb-dir', required=False, type=str, help='if specified FB will be fine tuned ussing the reward loss, the fb model weight will be taken from the specifed dir')
 parser.add_argument('--mode', required=False, type=str, help='selfplay/train_em/train_utter')
 parser.add_argument('--optimizer', required=False, type=str, help='adam/nestrov/RMSprop default is set to be Adam')
@@ -104,13 +104,13 @@ def main():
     scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True, cooldown=5)
     losses = defaultdict(lambda: defaultdict(list))
     dists = defaultdict(lambda: defaultdict(list))
-    if utterance_config.one_sentence_mode:
+    if utterance_config.tiny_dataset_mode:
         num_agents = np.random.randint(game_config.min_agents, game_config.max_agents + 1)
         num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks + 1)
         agent.reset()
         game = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
     for epoch in range(training_config.num_epochs):
-        if utterance_config.one_sentence_mode == False:
+        if utterance_config.tiny_dataset_mode == False:
             num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)
             num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks+1)
             agent.reset()
@@ -141,7 +141,7 @@ def main():
 
         save_losses(epoch, losses, dists, game_config, writer, language_loss, dist_loss, run_config.folder_dir)
         torch.autograd.set_detect_anomaly(True)
-        total_loss.backward()
+        total_loss.backward(retain_graph=True)
         optimizer.step()
         optimizer.zero_grad()
 

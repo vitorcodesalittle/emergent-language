@@ -5,6 +5,7 @@ import torch.nn as nn
 from modules.plot import Plot
 from torch.autograd import Variable
 import numpy as np
+import random
 
 """
     The GameModule takes in all actions(movement, utterance, goal prediction)
@@ -30,13 +31,27 @@ import numpy as np
 
 class GameModule(nn.Module):
 
+    def sample_color_for_agents(self, a):
+        return random.sample(range(self.num_colors), self.num_agents)
+
+    def sample_shapes_for_lm(self, a):
+        return random.sample(range(self.num_shapes), self.num_landmarks)
+
+    def sample_color_for_lm(self, a):
+        return random.sample(range(self.num_colors), self.num_landmarks)
+
+    def sample_shapes_for_agents(self, a):
+        return random.sample(range(self.num_shapes), self.num_agents)
+
     def __init__(self, config, num_agents, num_landmarks, folder_dir):
         super(GameModule, self).__init__()
         self.batch_size = config.batch_size # scalar: num games in this batch
         self.using_utterances = config.use_utterances # bool: whether current batch allows utterances
         self.using_cuda = config.use_cuda
         self.num_agents = num_agents # scalar: number of agents in this batch
+        self.num_colors = config.num_colors
         self.num_landmarks = num_landmarks # scalar: number of landmarks in this batch
+        self.num_shapes = config.num_shapes
         self.num_entities = self.num_agents + self.num_landmarks # type: int
         self.world_dim = config.world_dim
         self.time_horizon = config.time_horizon
@@ -48,8 +63,18 @@ class GameModule(nn.Module):
             self.Tensor = torch.FloatTensor
 
         locations = torch.rand(self.batch_size, self.num_entities, 2) * config.world_dim
-        self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
-        self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
+        # self.colors = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_colors).floor()
+        # self.shapes = (torch.rand(self.batch_size, self.num_entities, 1) * config.num_shapes).floor()
+        colors_agents = np.ones((self.batch_size, self.num_agents))
+        self.colors_agents = np.apply_along_axis(self.sample_color_for_agents, 1, colors_agents)
+        colors_lm = np.ones((self.batch_size, self.num_landmarks))
+        self.colors_lm = np.apply_along_axis(self.sample_color_for_lm, 1, colors_lm)
+        shapes_lm = np.ones((self.batch_size, self.num_landmarks))
+        self.shapes_lm = np.apply_along_axis(self.sample_shapes_for_lm, 1, shapes_lm)
+        shapes_agents = np.ones((self.batch_size, self.num_agents))
+        self.shapes_agents = np.apply_along_axis(self.sample_shapes_for_agents, 1, shapes_agents)
+        self.colors = torch.FloatTensor(np.concatenate((self.colors_agents, self.colors_lm),axis=1)).unsqueeze(dim=2)
+        self.shapes = torch.FloatTensor(np.concatenate((self.shapes_agents, self.shapes_lm),axis=1)).unsqueeze(dim=2)
 
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
         self.goal_entities = (torch.rand(self.batch_size, self.num_agents, 1) * self.num_landmarks).floor().long() + self.num_agents

@@ -4,7 +4,7 @@ vocab = ['go', 'to', 'agent', 'red', 'green', 'blue', 'landmark',
              'good', 'stay', 'goal']
 
 colors = ['red', 'green', 'blue']
-shapes = ['circle', 'triangle']
+shapes = ['circle', 'triangle', 'square']
 
 sentence_form = ["<color1> agent go to <color2> landmark",
                  "<color1> <shape1> agent go to <color2> <shape2> landmark",
