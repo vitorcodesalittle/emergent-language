@@ -1,3 +1,4 @@
+# See where each of this is used
 WORLD_DIMENSIONALITY = 2
 MOVEMENT_STEP_SIZE = 2
 COLOR_SCALE = 1

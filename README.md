@@ -12,4 +12,9 @@ To run, invoke `python3 train.py` in environment with PyTorch installed. To expe
 * `simple_model.py` provides a simple model that doesn't communicate and only moves based on its own goal (used for testing other components)
 * `comp-graph.pdf` is a pdf visualization of the computational graph of the game-agent mechanics
 
-new comment
+## Todos
+- [ ] Separate NLP code from article's implementation
+- [ ] What is tensorboard?
+- [ ] review derivative implementation
+- [ ] clean, separate front and backends
+- [ ] generate plots and gifs

@@ -1,3 +1,4 @@
+# part of frontend
 import argparse
 import os
 from collections import defaultdict
@@ -7,13 +8,14 @@ import torch
 from modules import plot
 from modules.agent import AgentModule
 from modules.game import GameModule
-from tensorboardX import SummaryWriter  # the tensorboardX is installed in the anaconda console
+# from tensorboardX import SummaryWriter  # the tensorboardX is installed in the anaconda console
 from torch.optim import RMSprop
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import configs
 import create_plots  # for the file dir function
 
+# move to configs
 parser = argparse.ArgumentParser(description="Trains the agents for cooperative communication task")
 parser.add_argument('--no-utterances', action='store_true', help='if specified disables the communications channel (default enabled)')
 parser.add_argument('--penalize-words', action='store_true', help='if specified penalizes uncommon word usage (default disabled)')
@@ -43,33 +45,26 @@ parser.add_argument('--fb-dir', required=False, type=str, help='if specified FB 
 parser.add_argument('--mode', required=False, type=str, help='selfplay/train_em/train_utter')
 
 
-def print_losses(epoch, losses, dists, game_config, writer):
+def print_losses(epoch, losses, dists, game_config):
     for a in range(game_config.min_agents, game_config.max_agents + 1):
         for l in range(game_config.min_landmarks, game_config.max_landmarks + 1):
             loss = losses[a][l][-1] if len(losses[a][l]) > 0 else 0
             min_loss = min(losses[a][l]) if len(losses[a][l]) > 0 else 0
             dist = dists[a][l][-1] if len(dists[a][l]) > 0 else 0
             min_dist = min(dists[a][l]) if len(dists[a][l]) > 0 else 0
-            writer.add_scalar('Loss,' + str(a) + 'agents,' + str(l) + 'landmarks' , loss, epoch) #data for Tensorboard
-            writer.add_scalar('dist,' + str(a) + 'agents,' + str(l) + 'landmarks' , dist, epoch) #data for TensorBoard
+            # writer.add_scalar('Loss,' + str(a) + 'agents,' + str(l) + 'landmarks' , loss, epoch) #data for Tensorboard
+            # writer.add_scalar('dist,' + str(a) + 'agents,' + str(l) + 'landmarks' , dist, epoch) #data for TensorBoard
 
             print("[epoch %d][%d agents, %d landmarks][%d cases][last loss: %f][min loss: %f][last dist: %f][min dist: %f]" % (epoch, a, l, len(losses[a][l]), loss, min_loss, dist, min_dist))
     print("_________________________")
 
 
 def main():
+    # parses cli args in different config dicts
     args = vars(parser.parse_args())
-    run_config = configs.get_run_config(args)
-    agent_config = configs.get_agent_config(args)
-    game_config = configs.get_game_config(args)
-    training_config = configs.get_training_config(args, run_config.folder_dir)
-    utterance_config = configs.get_utterance_config()
-    print("Training with config:")
-    print(training_config)
-    print(game_config)
-    print(agent_config)
-    print(run_config)
-    writer = SummaryWriter(run_config.folder_dir + 'tensorboard' + os.sep)  #Tensorboard - setting where the temp files will be saved
+    run_config, agent_config, game_config, training_config, utterance_config = configs.get_configs(args)
+
+    # writer = SummaryWriter(run_config.folder_dir + 'tensorboard' + os.sep)  #Tensorboard - setting where the temp files will be saved
     agent = AgentModule(agent_config, utterance_config, run_config.corpus, run_config.creating_data_set_mode, run_config.create_utterance_using_old_code)
     if run_config.upload_trained_model:
         folder_dir_trained_model = run_config.dir_upload_model
@@ -83,6 +78,7 @@ def main():
     scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True, cooldown=5)
     losses = defaultdict(lambda: defaultdict(list))
     dists = defaultdict(lambda: defaultdict(list))
+    # one_sentence_data_set, what does it do???
     if args['one_sentence_data_set']:
         num_agents = np.random.randint(game_config.min_agents, game_config.max_agents + 1)
         num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks + 1)
@@ -90,7 +86,7 @@ def main():
         game_init = GameModule(game_config, num_agents, num_landmarks, run_config.folder_dir)
 
     for epoch in range(training_config.num_epochs):
-        if args['one_sentence_data_set'] == False:
+        if args['one_sentence_data_set'] == False: # this block inside the for is weird, maybe move outiside?
             num_agents = np.random.randint(game_config.min_agents, game_config.max_agents+1)
             num_landmarks = np.random.randint(game_config.min_landmarks, game_config.max_landmarks+1)
             agent.reset()
@@ -98,43 +94,35 @@ def main():
         else:
             agent.reset()
             game = game_init
+
         if training_config.use_cuda:
-            game.cuda()
+            game.cuda() ## maybe move closer to agent.cuda()? group all pytorch things closer
         optimizer.zero_grad()
 
         total_loss, _ = agent(game)
         per_agent_loss = total_loss.data[0] / num_agents / game_config.batch_size
         losses[num_agents][num_landmarks].append(per_agent_loss)
 
-        dist, dist_per_agent = game.get_avg_agent_to_goal_distance() #add to tensorboard
+        dist, dist_per_agent = game.get_avg_agent_to_goal_distance()
         dist_per_agent_file_name = run_config.folder_dir + 'dist_from_goal.h5'
-        if os.path.isfile(dist_per_agent_file_name):
-            plot.save_dataset(dist_per_agent_file_name, 'dist_from_goal', dist_per_agent.detach().numpy(), 'a')
-        else:
-            plot.save_dataset(dist_per_agent_file_name, 'dist_from_goal', dist_per_agent.detach().numpy(), 'w')
+        mode = "a" if os.path.isfile(dist_per_agent_file_name) else "w"
+        plot.save_dataset(dist_per_agent_file_name, 'dist_from_goal', dist_per_agent.detach().numpy(), mode)
 
         avg_dist = dist.data.item() / num_agents / game_config.batch_size
         dists[num_agents][num_landmarks].append(avg_dist)
 
-        print_losses(epoch, losses, dists, game_config, writer)
-        torch.autograd.set_detect_anomaly(True)
-        total_loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+        print_losses(epoch, losses, dists, game_config)
+        torch.autograd.set_detect_anomaly(True) # inside for loop, maybe should not
+        total_loss.backward() ## computes the gradients from graph
+        optimizer.step() ## weight updates based on gradient calculations
+        optimizer.zero_grad() ## set's gradients to zero
 
-        if num_agents == game_config.max_agents and num_landmarks == game_config.max_landmarks:
+        # end of for loop kind of if
+        if num_agents == game_config.max_agents and num_landmarks == game_config.max_landmarks: 
             scheduler.step(losses[game_config.max_agents][game_config.max_landmarks][-1])
 
     torch.save(agent.state_dict(), training_config.save_model_file)
     print("Saved agent model weights at %s" % training_config.save_model_file)
-    writer.close() # close the tensorboard temp files
-
-    """
-    import code
-    code.interact(local=locals())
-    """
-
 
 if __name__ == "__main__":
     main()
-

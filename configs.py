@@ -421,3 +421,16 @@ def create_new_dir():
     os.makedirs(plots_dir)
 
     return folder_dir
+
+def get_configs(args):
+    run_config = get_run_config(args)
+    agent_config = get_agent_config(args)
+    game_config = get_game_config(args)
+    training_config = get_training_config(args, run_config.folder_dir)
+    utterance_config = get_utterance_config()
+    print("Training with config:")
+    print(training_config)
+    print(game_config)
+    print(agent_config)
+    print(run_config)
+    return run_config, agent_config, game_config, training_config, utterance_config

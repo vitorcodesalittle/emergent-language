@@ -1,3 +1,4 @@
+# part of front-end
 import os
 import random
 
