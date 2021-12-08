@@ -28,7 +28,6 @@ class GameModule(nn.Module):
 
     def __init__(self, config, num_agents, num_landmarks):
         super(GameModule, self).__init__()
-        print(config)
         self.batch_size = config.batch_size # scalar: num games in this batch
         self.using_utterances = config.use_utterances # bool: whether current batch allows utterances
         self.using_cuda = config.use_cuda
@@ -105,7 +104,6 @@ class GameModule(nn.Module):
         self.observed_goals = torch.cat((new_obs, goal_agents), dim=2)
 
 
-
     """
     Updates game state given all movements and utterances and returns accrued cost
         - movements: [batch_size, num_agents, config.movement_size]
@@ -123,9 +121,9 @@ class GameModule(nn.Module):
         self.observed_goals = torch.cat((new_obs, goal_agents), dim=2)
         if self.using_utterances:
             self.utterances = utterances
-            return self.compute_cost(movements, goal_predictions, utterances)
+            return self.compute_cost(movements, goal_predictions, utterances), utterances
         else:
-            return self.compute_cost(movements, goal_predictions)
+            return self.compute_cost(movements, goal_predictions), None
 
     def compute_cost(self, movements, goal_predictions, utterances=None):
         physical_cost = self.compute_physical_cost()

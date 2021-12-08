@@ -108,7 +108,7 @@ class AgentModule(nn.Module):
                 utterance_feat = self.get_utterance_feat(game, agent, goal_predictions)
                 self.get_action(game, agent, physical_feat, utterance_feat, movements, utterances)
 
-            cost = game(movements, goal_predictions, utterances)
+            cost, utterances = game(movements, goal_predictions, utterances)
             if self.penalizing_words:
                 cost = cost + self.word_counter(utterances)
 

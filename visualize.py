@@ -1,4 +1,5 @@
 import math
+import string
 import cv2
 import numpy as np
 from collections import defaultdict
@@ -9,13 +10,13 @@ from modules.game import GameModule
 from configs import get_game_config, get_agent_config
 
 
-
-def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utterances=True, time_horizon=200, model_pt="latest.pt", outpath="viz1.avi"):
+def make_gif(num_agents=2, num_landmarks=3, num_colors=4, num_shapes=2, use_utterances=True, time_horizon=100, model_pt="latest.pt", outpath="viz1.avi"):
     def make_get_coords(topleft, bottomright, height, width):
         minr, minc = topleft
         maxr, maxc = bottomright
         return lambda c, r: (math.floor((c - minc)/(maxc-minc+1)* width), math.floor((r - minr) / (maxr - minr + 1) * height)) # Todo
-    colors = ['red', 'blue', 'green']
+    colors = [(66, 135, 245), (214, 19, 201), (135, 168, 230), (242, 144, 7), (242, 144, 7), (255,0,0), (0,255,0), (0,0,255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (133, 133, 133), (12, 133, 256)]
+    alphabet = string.ascii_lowercase[:20]
     shapes = ['circle', 'square']
 
     game_config = get_game_config(defaultdict(None, {
@@ -35,15 +36,33 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
 
     game = GameModule(game_config, num_agents, num_landmarks)
 
-
     def get_shape(index):
-        pass
+        return shapes[int(game.physical[0, index, 1])]
 
     def get_color(index):
-        return (12, 123, 59)
-    def print_in_frame(r, c, shape, color, frame):
-        frame[c, r] = color
-        pass
+        return colors[int(game.physical[0, index, 0])]
+
+    def print_in_frame(r, c, shape, color, frame, utterances):
+        size = 10
+        if shape == "square":
+            frame[max(0, c-size//2):min(199, c+size//2), max(0, r-size//2):min(199, r+size//2)] = color
+        elif shape == "circle":
+            frame = cv2.circle(frame, (c,r), size//2, color=color, thickness=-1)
+
+    def create_utterances_label(utterances):
+            cs = np.argmax(utterances, axis=2).detach().numpy().tolist()
+            return ",".join(list(map(lambda c: alphabet[c], cs[0])))
+
+    def print_utterances_label(frame, utterances):
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        org = (50, 50)
+        fontScale = 1
+        color = (255, 0, 0)
+        thickness = 2
+        cv2.putText(frame, create_utterances_label(utterances), org, font,
+                   fontScale, color, thickness, cv2.LINE_AA)
+
+
 
     agent = torch.load(model_pt)
     agent.reset()
@@ -51,29 +70,31 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
     agent.time_horizon = time_horizon
     total_loss, timesteps = agent(game)
     # now we use the timesteps information for building the gif
-    gwidth = 200
-    gheigth = 200
+    gwidth = 400
+    gheigth = 400
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    out = cv2.VideoWriter(outpath, fourcc, 22, (gwidth, gheigth), isColor=1)
+    out = cv2.VideoWriter(outpath, fourcc, 15, (gwidth, gheigth), isColor=1)
     if not out.isOpened():
         raise Exception("can't open video")
+    locations = np.concatenate(list(map(lambda t: t['locations'].detach().numpy(), timesteps)), axis=0)
+    minr = np.min(locations[:,:,0])
+    minc = np.min(locations[:,:,1])
+    maxr = np.max(locations[:,:,0])
+    maxc = np.max(locations[:,:,1])
     for index, info in enumerate(timesteps):
         locations = info['locations']
+        utterances = info['utterances']
         locations = locations.detach().numpy()
-        minr = np.min(locations[0,:,0])
-        minc = np.min(locations[0,:,1])
-        maxr = np.max(locations[0,:,0])
-        maxc = np.max(locations[0,:,1])
         get_coords = make_get_coords((minr, minc), (maxr, maxc), gheigth, gwidth)
         frame = np.zeros((gheigth, gwidth, 3), dtype=np.uint8)
         for index, location in enumerate(locations[0]):
             y = location[0]
             x = location[1] # is it tho??
             c, r = get_coords(x, y)
-            print((r,c))
             shape = get_shape(index)
             color = get_color(index)
-            print_in_frame(r, c, shape, color, frame)
+            print_in_frame(r, c, shape, color, frame, [])
+        print_utterances_label(frame, utterances)
         out.write(frame)
     cv2.destroyAllWindows()
     out.release()
