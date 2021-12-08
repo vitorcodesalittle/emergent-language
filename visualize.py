@@ -14,7 +14,7 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
     def make_get_coords(topleft, bottomright, height, width):
         minr, minc = topleft
         maxr, maxc = bottomright
-        return lambda c, r: (math.floor((c - minc)/(maxc-minc)* width), math.floor((r - minr) / (maxr - minr) * height)) # Todo
+        return lambda c, r: (math.floor((c - minc)/(maxc-minc+1)* width), math.floor((r - minr) / (maxr - minr + 1) * height)) # Todo
     colors = ['red', 'blue', 'green']
     shapes = ['circle', 'square']
 
@@ -40,9 +40,9 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
         pass
 
     def get_color(index):
-        pass
-
+        return (12, 123, 59)
     def print_in_frame(r, c, shape, color, frame):
+        frame[c, r] = color
         pass
 
     agent = torch.load(model_pt)
@@ -51,10 +51,8 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
     agent.time_horizon = time_horizon
     total_loss, timesteps = agent(game)
     # now we use the timesteps information for building the gif
-    
     gwidth = 200
     gheigth = 200
-    MEM_UPPER_BOUND = 1e9 # 1 Gbyte
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
     out = cv2.VideoWriter(outpath, fourcc, 22, (gwidth, gheigth), isColor=1)
     if not out.isOpened():
@@ -77,7 +75,6 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
             color = get_color(index)
             print_in_frame(r, c, shape, color, frame)
         out.write(frame)
-    print(f"Saving video at {outpath}")
     cv2.destroyAllWindows()
     out.release()
 
