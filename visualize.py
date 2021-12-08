@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 from collections import defaultdict
 from graphviz import Digraph
 import torch
@@ -6,7 +7,11 @@ from torch.autograd import Variable
 from modules.game import GameModule
 from configs import get_game_config, get_agent_config
 
-def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utterances=True, model_pt="latest.pt"):
+def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utterances=True, time_horizon=200, model_pt="latest.pt"):
+    def make_get_coords(topleft, bottomright, height, width):
+        minr, minc = topleft
+        maxr, maxc = bottomright
+        return lambda y, x: (0,0) # Todo
     colors = ['red', 'blue', 'green']
     shapes = ['circle', 'square']
 
@@ -26,12 +31,46 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
     }))
 
     game = GameModule(game_config, num_agents, num_landmarks)
+
+    def get_shape(index):
+        pass
+
+    def get_color(index):
+        pass
+
+    def print_in_frame(r, c, shape, color, frame):
+        pass
+
     agent = torch.load(model_pt)
     agent.reset()
     agent.train(False)
-    agent.time_horizon = 200
+    agent.time_horizon = time_horizon
     total_loss, timesteps = agent(game)
     # now we use the timesteps information for building the gif
+    
+    gwidth = 200
+    gheigth = 200
+    MEM_UPPER_BOUND = 1e9 # 1 Gbyte
+    assert 3 * gwidth * gheigth * time_horizon < MEM_UPPER_BOUND, "This will take more memory than we can store in my limited"
+    video = [ np.zeros((gheigth, gwidth)) for t in range(time_horizon) ]
+    for index, info in enumerate(timesteps):
+        frame = video[index]
+        locations = info['locations']
+        locations = locations.detach().numpy()
+        minr = np.min(locations[0,:,0])
+        minc = np.min(locations[0,:,1])
+        maxr = np.max(locations[0,:,0])
+        maxc = np.max(locations[0,:,1])
+        get_coords = make_get_coords((minr, minc), (maxr, maxc), gheigth, gwidth)
+        for index, location in enumerate(locations[0]):
+            y = location[0]
+            x = location[1] # is it tho??
+            r, c = get_coords(y, x)
+            shape = get_shape(index)
+            color = get_color(index)
+            print_in_frame(r, c, shape, color, frame)
+
+    # TODO: save video as gif
 
 make_gif() #debug only
     

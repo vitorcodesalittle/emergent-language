@@ -95,9 +95,7 @@ class AgentModule(nn.Module):
 
     def forward(self, game):
         timesteps = []
-        print(self.time_horizon)
         for t in range(self.time_horizon):
-            print(t)
             movements = Variable(self.Tensor(game.batch_size, game.num_entities, self.movement_dim_size).zero_())
             utterances = None
             goal_predictions = None
