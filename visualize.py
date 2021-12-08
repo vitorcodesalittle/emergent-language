@@ -1,15 +1,16 @@
+import cv2
 from collections import defaultdict
 from graphviz import Digraph
 import torch
 from torch.autograd import Variable
 from modules.game import GameModule
-from configs import get_game_config
+from configs import get_game_config, get_agent_config
 
 def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utterances=True, model_pt="latest.pt"):
     colors = ['red', 'blue', 'green']
     shapes = ['circle', 'square']
 
-    d = defaultdict(None, {
+    game_config = get_game_config(defaultdict(None, {
         'batch_size': 1,
         'world_dim': 2,
         'max_agents': 10,
@@ -22,15 +23,14 @@ def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, use_utte
         'vocab_size': 20,
         'memory_size': 256,
         'use_cuda': False
-    })
-    game_config = get_game_config(d)
+    }))
 
     game = GameModule(game_config, num_agents, num_landmarks)
     agent = torch.load(model_pt)
     agent.reset()
     agent.train(False)
+    agent.time_horizon = 200
     total_loss, timesteps = agent(game)
-    print(f"Total Loss {total_loss}\nTimesteps {timesteps}")
     # now we use the timesteps information for building the gif
 
 make_gif() #debug only
