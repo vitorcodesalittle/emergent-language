@@ -42,6 +42,7 @@ def print_losses(epoch, losses, dists, game_config):
 
 def main():
     args = vars(parser.parse_args())
+    print(args)
     agent_config = configs.get_agent_config(args)
     game_config = configs.get_game_config(args)
     training_config = configs.get_training_config(args)

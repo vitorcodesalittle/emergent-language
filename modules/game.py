@@ -28,7 +28,7 @@ class GameModule(nn.Module):
 
     def __init__(self, config, num_agents, num_landmarks):
         super(GameModule, self).__init__()
-
+        print(config)
         self.batch_size = config.batch_size # scalar: num games in this batch
         self.using_utterances = config.use_utterances # bool: whether current batch allows utterances
         self.using_cuda = config.use_cuda
