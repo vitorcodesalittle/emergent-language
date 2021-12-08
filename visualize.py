@@ -1,7 +1,34 @@
 from graphviz import Digraph
 import torch
 from torch.autograd import Variable
+from modules.game import GameModule
 
+def make_gif(num_agents=2, num_landmarks=3, num_colors=2, num_shapes=2, model_pt="latest.pt"):
+    colors = ['red', 'blue', 'green']
+    shapes = ['circle', 'square']
+
+    config = {
+        'batch_size': 1,
+        'world_dim': 2,
+        'max_agents': 10,
+        'max_landmarks': 10,
+        'min_agents': 2,
+        'min_landmarks': 0,
+        'num_shapes': num_shapes,
+        'num_colors': num_colors,
+        'no_utterances': not use_utterances,
+        'vocab_size': 10,
+        'memory_size': 256
+    }
+
+    game = GameModule(game_config, num_agents, num_landmarks)
+    agent = torch.load(model_pt)
+    agent.reset()
+    agent.train(False)
+    total_loss, timesteps = agent(game)
+    print(f"Total Loss {total_loss}\nTimesteps {timesteps}")
+    # now we use the timesteps information for building the gif
+    
 
 def make_dot(var, params=None, filename=None):
     """ Produces Graphviz representation of PyTorch autograd graph

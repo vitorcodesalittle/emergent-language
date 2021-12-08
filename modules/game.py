@@ -92,7 +92,6 @@ class GameModule(nn.Module):
 
         sort_idxs = torch.sort(self.goals[:,:,2])[1]
         self.sorted_goals = Variable(self.Tensor(self.goals.size()))
-        # TODO: Bad for loop?
         for b in range(self.batch_size):
             self.sorted_goals[b] = self.goals[b][sort_idxs[b]]
         self.sorted_goals = self.sorted_goals[:,:,:2]
