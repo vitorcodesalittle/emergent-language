@@ -47,7 +47,7 @@ class GameModule(nn.Module):
         goal_agents = self.Tensor(self.batch_size, self.num_agents, 1)
         goal_entities = (torch.rand(self.batch_size, self.num_agents, 1) * self.num_landmarks).floor().long() + self.num_agents
         goal_locations = self.Tensor(self.batch_size, self.num_agents, 2)
-
+        
         if self.using_cuda:
             locations = locations.cuda()
             colors = colors.cuda()
@@ -60,7 +60,11 @@ class GameModule(nn.Module):
         self.physical = Variable(torch.cat((colors,shapes), 2).float())
 
         for b in range(self.batch_size):
-            goal_agents[b, :, 0] = torch.randperm(self.num_agents)
+            p = torch.randperm(self.num_agents)
+            # avoid agents with goals for themselves
+            while torch.sum(torch.eq(torch.randperm(self.num_agents), torch.Tensor(range(self.num_agents)) + 1), 0) == 1:
+                p = torch.randperm(self.num_agents)
+            goal_agents[b, :, 0] = p
 
         for b in range(self.batch_size):
             goal_locations[b] = self.locations.data[b][goal_entities[b].squeeze()]
@@ -69,6 +73,12 @@ class GameModule(nn.Module):
         self.goals = Variable(torch.cat((goal_locations, goal_agents), 2))
         goal_agents = Variable(goal_agents)
 
+        print(f"""
+goals={self.goals}
+o agente alvo={goal_agents}
+aonde eu quero que ele vá={goal_entities}
+lozalizaçãos dos goals={goal_locations}
+        """)
 
         if self.using_cuda:
             self.memories = {
@@ -157,8 +167,6 @@ class GameModule(nn.Module):
         observed_goals[., a_j, :] = a_j's goal with location relative to a_j
     Which means we want to build an observed_goals-like tensor but relative to each agent
         real_goal_locations[., a_i, a_j, :] = goals[., a_j, :] - locations[a_i]
-
-
     """
     def compute_goal_pred_cost(self, goal_predictions):
         relative_goal_locs = self.goals.unsqueeze(1)[:,:,:,:2] - self.locations.unsqueeze(2)[:, :self.num_agents, :, :]
